@@ -1,12 +1,14 @@
 'use client'
 
-import { useCallback, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import Link from 'next/link'
+import { PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { buttonVariants } from '@/components/ui/button'
 import { FestivalLogo } from '@/components/FestivalLogo'
 import { CreateGroupForm } from '@/components/CreateGroupForm'
 import { JoinGroupForm } from '@/components/JoinGroupForm'
 import { LineupGrid } from '@/components/LineupGrid'
+import { cn } from '@/lib/utils'
 import { Event, Stage, Performance } from '@/lib/types'
 
 type StageWithPerfs = Stage & { performances: Performance[] }
@@ -22,7 +24,20 @@ const DEFAULT_SIDEBAR_WIDTH = 260
 
 export function EventView({ event, stages }: EventViewProps) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
   const isDragging = useRef(false)
+
+  useEffect(() => {
+    const update = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (mobile) setSidebarOpen(false)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   const hasLineup = stages.some((s) => s.performances.length > 0)
 
@@ -50,13 +65,32 @@ export function EventView({ event, stages }: EventViewProps) {
   }, [])
 
   return (
-    <div className="flex h-[calc(100vh-57px)] overflow-hidden">
+    <div className="flex h-[calc(100vh-57px)] overflow-hidden relative">
+      {/* Mobile backdrop */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
       {/* Sidebar */}
       <div
-        style={{ width: sidebarWidth }}
-        className="shrink-0 border-r border-border bg-background flex flex-col overflow-hidden"
+        className={cn(
+          'bg-background border-r border-border flex flex-col overflow-hidden z-40',
+          isMobile
+            ? cn(
+                'fixed top-[57px] left-0 bottom-0 w-72 transition-transform duration-200 shadow-xl',
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+              )
+            : cn(
+                'relative shrink-0 transition-[width] duration-200',
+                !sidebarOpen && 'border-r-0',
+              ),
+        )}
+        style={!isMobile ? { width: sidebarOpen ? sidebarWidth : 0 } : undefined}
       >
-        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-6 min-h-0">
+        <div className="flex-1 overflow-y-auto p-5 flex flex-col gap-6 min-h-0 min-w-[240px]">
           {/* Event header */}
           <div>
             <FestivalLogo
@@ -101,19 +135,34 @@ export function EventView({ event, stages }: EventViewProps) {
         </div>
       </div>
 
-      {/* Drag handle */}
-      <div
-        className="w-1 shrink-0 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
-        onMouseDown={handleDragStart}
-      />
+      {/* Drag handle - desktop only */}
+      {!isMobile && sidebarOpen && (
+        <div
+          className="w-1 shrink-0 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
+          onMouseDown={handleDragStart}
+        />
+      )}
 
-      {/* Lineup */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="shrink-0 bg-background px-6 pt-5 pb-4 border-b border-border">
-          <h2 className="text-2xl font-bold tracking-tight">{event.name}</h2>
-          <p className="text-sm text-muted-foreground mt-0.5">{event.location}</p>
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="shrink-0 bg-background px-4 sm:px-6 pt-4 pb-3 border-b border-border flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen((o) => !o)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+            aria-label={sidebarOpen && !isMobile ? 'Collapse sidebar' : 'Open sidebar'}
+          >
+            {sidebarOpen && !isMobile ? (
+              <PanelLeftClose className="w-5 h-5" />
+            ) : (
+              <PanelLeftOpen className="w-5 h-5" />
+            )}
+          </button>
+          <div className="min-w-0">
+            <h2 className="text-lg sm:text-2xl font-bold tracking-tight truncate">{event.name}</h2>
+            <p className="text-xs sm:text-sm text-muted-foreground mt-0.5 truncate">{event.location}</p>
+          </div>
         </div>
-        <div className="flex-1 overflow-auto px-4 py-4">
+        <div className="flex-1 overflow-auto px-2 sm:px-4 py-4">
           {hasLineup ? (
             <LineupGrid
               stages={stages}

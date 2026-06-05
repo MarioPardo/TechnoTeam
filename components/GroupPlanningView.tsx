@@ -1,10 +1,12 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
+import { PanelLeftOpen, PanelLeftClose } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { signInOrJoin, leaveGroup } from '@/app/actions/members'
 import { togglePlan } from '@/app/actions/plans'
 import { addCrewCode } from '@/lib/crew-cookies'
+import { cn } from '@/lib/utils'
 import { Member, Plan, Performance, Stage, Group } from '@/lib/types'
 import { LineupGrid } from './LineupGrid'
 import { GroupSidebar } from './GroupSidebar'
@@ -45,8 +47,21 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     error: string | null
   } | null>(null)
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
+  const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [isMobile, setIsMobile] = useState(false)
   const [chatCollapsed, setChatCollapsed] = useState(false)
   const isDragging = useRef(false)
+
+  useEffect(() => {
+    const update = () => {
+      const mobile = window.innerWidth < 768
+      setIsMobile(mobile)
+      if (mobile) setSidebarOpen(false)
+    }
+    update()
+    window.addEventListener('resize', update)
+    return () => window.removeEventListener('resize', update)
+  }, [])
 
   useEffect(() => {
     const token = localStorage.getItem(SESSION_KEY)
@@ -326,13 +341,32 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
   }
 
   return (
-    <div className="flex h-[calc(100vh-57px)] overflow-hidden">
-      {/* Resizable sidebar */}
+    <div className="flex h-[calc(100vh-57px)] overflow-hidden relative">
+      {/* Mobile backdrop */}
+      {isMobile && sidebarOpen && (
+        <div
+          className="fixed inset-0 z-30 bg-black/40"
+          onClick={() => setSidebarOpen(false)}
+        />
+      )}
+
+      {/* Sidebar */}
       <div
-        style={{ width: sidebarWidth }}
-        className="shrink-0 border-r border-border bg-background flex flex-col overflow-hidden"
+        className={cn(
+          'bg-background border-r border-border flex flex-col overflow-hidden z-40',
+          isMobile
+            ? cn(
+                'fixed top-[57px] left-0 bottom-0 w-72 transition-transform duration-200 shadow-xl',
+                sidebarOpen ? 'translate-x-0' : '-translate-x-full',
+              )
+            : cn(
+                'relative shrink-0 transition-[width] duration-200',
+                !sidebarOpen && 'border-r-0',
+              ),
+        )}
+        style={!isMobile ? { width: sidebarOpen ? sidebarWidth : 0 } : undefined}
       >
-        <div className="flex-1 overflow-y-auto p-4 min-h-0">
+        <div className="flex-1 overflow-y-auto p-4 min-h-0 min-w-[180px]">
           <GroupSidebar
             groupName={group.name}
             groupCode={group.code}
@@ -351,22 +385,39 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
         />
       </div>
 
-      {/* Drag handle */}
-      <div
-        className="w-1 shrink-0 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
-        onMouseDown={handleDragStart}
-      />
+      {/* Drag handle - desktop only */}
+      {!isMobile && sidebarOpen && (
+        <div
+          className="w-1 shrink-0 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
+          onMouseDown={handleDragStart}
+        />
+      )}
 
-      {/* Grid */}
-      <div className="flex-1 flex flex-col overflow-hidden">
-        <div className="shrink-0 bg-background px-2 pt-4 pb-3 text-center border-b border-border">
-          <FestivalLogo
-            lightUrl={group.events.image_url}
-            darkUrl={group.events.image_url_dark}
-            alt={group.events.name}
-            className="w-14 h-14 mx-auto mb-2 rounded-xl object-contain bg-muted"
-          />
-          <h2 className="text-4xl font-bold tracking-tight text-foreground">{group.events.name}</h2>
+      {/* Main content */}
+      <div className="flex-1 flex flex-col overflow-hidden min-w-0">
+        <div className="shrink-0 bg-background px-3 sm:px-4 pt-3 pb-3 border-b border-border flex items-center gap-3">
+          <button
+            onClick={() => setSidebarOpen((o) => !o)}
+            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
+            aria-label={sidebarOpen && !isMobile ? 'Collapse crew sidebar' : 'Open crew sidebar'}
+          >
+            {sidebarOpen && !isMobile ? (
+              <PanelLeftClose className="w-5 h-5" />
+            ) : (
+              <PanelLeftOpen className="w-5 h-5" />
+            )}
+          </button>
+          <div className="flex items-center gap-3 flex-1 min-w-0">
+            <FestivalLogo
+              lightUrl={group.events.image_url}
+              darkUrl={group.events.image_url_dark}
+              alt={group.events.name}
+              className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl object-contain bg-muted shrink-0"
+            />
+            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground truncate">
+              {group.events.name}
+            </h2>
+          </div>
         </div>
         <div className="flex-1 overflow-auto px-2 py-4">
           <LineupGrid

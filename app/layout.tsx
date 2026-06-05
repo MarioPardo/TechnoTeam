@@ -27,23 +27,25 @@ export default function RootLayout({ children }: { children: React.ReactNode }) 
         />
       </head>
       <body className="min-h-full bg-background text-foreground flex flex-col">
-        <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md px-6 py-3 flex items-center justify-between">
-          <div className="flex items-center gap-8">
-            <Link href="/" className="flex items-center gap-2.5 group shrink-0">
-              <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
-                <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
-                  <path d="M9 18V5l12-2v13"/>
-                  <circle cx="6" cy="18" r="3"/>
-                  <circle cx="18" cy="16" r="3"/>
-                </svg>
-              </div>
-              <span className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors">
-                TechnoTeam
-              </span>
-            </Link>
+        <header className="sticky top-0 z-50 border-b border-border/60 bg-background/80 backdrop-blur-md px-4 sm:px-6 py-3 flex items-center gap-3 sm:gap-6">
+          <Link href="/" className="flex items-center gap-2 sm:gap-2.5 group shrink-0">
+            <div className="w-8 h-8 rounded-lg bg-primary flex items-center justify-center shrink-0">
+              <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="white" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M9 18V5l12-2v13"/>
+                <circle cx="6" cy="18" r="3"/>
+                <circle cx="18" cy="16" r="3"/>
+              </svg>
+            </div>
+            <span className="text-xl font-bold tracking-tight text-foreground group-hover:text-primary transition-colors hidden xs:block sm:block">
+              TechnoTeam
+            </span>
+          </Link>
+          <div className="flex-1 min-w-0 overflow-x-auto scrollbar-hide">
             <NavTabs />
           </div>
-          <ThemeToggle />
+          <div className="shrink-0">
+            <ThemeToggle />
+          </div>
         </header>
         <main className="flex-1">{children}</main>
       </body>
