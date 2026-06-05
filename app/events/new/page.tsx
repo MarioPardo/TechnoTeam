@@ -1,12 +1,7 @@
-import { isManageUnlocked } from '@/app/actions/auth'
-import { ManagePasswordGate } from '@/components/ManagePasswordGate'
 import { NewEventForm } from '@/components/NewEventForm'
 import Link from 'next/link'
 
 export default async function NewEventPage() {
-  const unlocked = await isManageUnlocked()
-  if (!unlocked) return <ManagePasswordGate />
-
   return (
     <div className="max-w-lg mx-auto px-6 py-12">
       <div className="mb-8">

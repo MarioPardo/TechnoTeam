@@ -1,11 +1,11 @@
 import Link from 'next/link'
 import { getEvents } from './actions/events'
-import { isManageUnlocked } from './actions/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { buttonVariants } from '@/components/ui/button'
 import { FestivalLogo } from '@/components/FestivalLogo'
 import { Event } from '@/lib/types'
+import { slugify } from '@/lib/utils'
 
 function formatDateRange(start: string, end: string) {
   const s = new Date(start + 'T00:00:00')
@@ -17,10 +17,8 @@ function formatDateRange(start: string, end: string) {
 
 export default async function HomePage() {
   let events: Event[] = []
-  let isAdmin = false
   try {
     events = await getEvents()
-    isAdmin = await isManageUnlocked()
   } catch {
     // Supabase not configured yet
   }
@@ -39,11 +37,9 @@ export default async function HomePage() {
       <section>
         <div className="flex items-center justify-between mb-4">
           <h2 className="text-lg font-semibold">Available Events</h2>
-          {isAdmin && (
-            <Link href="/events/new" className={buttonVariants({ size: 'sm' })}>
-              Add New Event
-            </Link>
-          )}
+          <Link href="/events/new" className={buttonVariants({ size: 'sm' })}>
+            Add New Event
+          </Link>
         </div>
 
         {events.length === 0 ? (
@@ -53,7 +49,7 @@ export default async function HomePage() {
         ) : (
           <div className="grid gap-3">
             {events.map((event) => (
-              <Link key={event.id} href={`/events/${event.id}`} className="block group">
+              <Link key={event.id} href={`/events/${slugify(event.name)}`} className="block group">
                 <Card className="hover:shadow-md transition-all duration-200 hover:border-primary/30 group-hover:-translate-y-0.5">
                   <CardHeader className="pb-2">
                     <div className="flex items-start gap-4">

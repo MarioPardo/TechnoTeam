@@ -5,6 +5,7 @@ import { revalidatePath } from 'next/cache'
 import { createHash } from 'crypto'
 import { supabase } from '@/lib/supabase'
 import { Event } from '@/lib/types'
+import { slugify } from '@/lib/utils'
 
 export async function createEvent(formData: FormData) {
   const name = formData.get('name') as string
@@ -82,4 +83,19 @@ export async function getEvent(id: string): Promise<Event> {
 
   if (error) throw new Error(error.message)
   return data as Event
+}
+
+export async function getEventBySlugOrId(slugOrId: string): Promise<Event | null> {
+  const { data: byId } = await supabase
+    .from('events')
+    .select('*')
+    .eq('id', slugOrId)
+    .maybeSingle()
+
+  if (byId) return byId as Event
+
+  const { data: all } = await supabase.from('events').select('*')
+  if (!all) return null
+
+  return (all as Event[]).find((e) => slugify(e.name) === slugOrId) ?? null
 }
