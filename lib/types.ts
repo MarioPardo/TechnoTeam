@@ -47,6 +47,7 @@ export type Event = {
   image_url_dark: string | null
   links: Array<{ label: string; url: string }> | null
   password_hash: string | null
+  font: string | null
   created_at: string
 }
 

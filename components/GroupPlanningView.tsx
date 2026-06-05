@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback, useRef } from 'react'
-import { PanelLeftOpen, PanelLeftClose } from 'lucide-react'
+import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
 import { signInOrJoin, leaveGroup } from '@/app/actions/members'
 import { togglePlan } from '@/app/actions/plans'
 import { addCrewCode } from '@/lib/crew-cookies'
 import { cn } from '@/lib/utils'
+import { getFontStyle, formatEventDates } from '@/lib/festival-font'
 import { Member, Plan, Performance, Stage, Group } from '@/lib/types'
 import { LineupGrid } from './LineupGrid'
 import { GroupSidebar } from './GroupSidebar'
@@ -18,7 +19,7 @@ import { Label } from '@/components/ui/label'
 
 type StageWithPerfs = Stage & { performances: Performance[] }
 type PlanWithMember = Plan & { members: Member }
-type GroupWithEvent = Group & { members: Member[]; events: { id: string; name: string; image_url: string | null; image_url_dark: string | null; timezone: string } }
+type GroupWithEvent = Group & { members: Member[]; events: { id: string; name: string; image_url: string | null; image_url_dark: string | null; timezone: string; date_start: string; date_end: string; font: string | null } }
 
 interface GroupPlanningViewProps {
   group: GroupWithEvent
@@ -344,19 +345,27 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     <div className="flex h-[calc(100vh-57px)] overflow-hidden relative">
       {/* Mobile backdrop */}
       {isMobile && sidebarOpen && (
-        <div
-          className="fixed inset-0 z-30 bg-black/40"
-          onClick={() => setSidebarOpen(false)}
-        />
+        <div className="fixed inset-0 z-30 bg-black/40" onClick={() => setSidebarOpen(false)} />
+      )}
+
+      {/* Mobile: persistent open-tab when sidebar is closed */}
+      {isMobile && !sidebarOpen && (
+        <button
+          onClick={() => setSidebarOpen(true)}
+          className="fixed left-0 top-1/2 -translate-y-1/2 z-20 flex items-center justify-center h-10 w-5 bg-background border border-l-0 border-border rounded-r-lg shadow-sm hover:bg-accent transition-colors"
+          aria-label="Open crew sidebar"
+        >
+          <ChevronRight className="w-3 h-3 text-muted-foreground" />
+        </button>
       )}
 
       {/* Sidebar */}
       <div
         className={cn(
-          'bg-background border-r border-border flex flex-col overflow-hidden z-40',
+          'z-40 bg-background border-r border-border',
           isMobile
             ? cn(
-                'fixed top-[57px] left-0 bottom-0 w-72 transition-transform duration-200 shadow-xl',
+                'fixed top-[57px] left-0 bottom-0 w-72 flex flex-col shadow-xl transition-transform duration-200',
                 sidebarOpen ? 'translate-x-0' : '-translate-x-full',
               )
             : cn(
@@ -366,26 +375,42 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
         )}
         style={!isMobile ? { width: sidebarOpen ? sidebarWidth : 0 } : undefined}
       >
-        <div className="flex-1 overflow-y-auto p-4 min-h-0 min-w-[180px]">
-          <GroupSidebar
-            groupName={group.name}
-            groupCode={group.code}
-            members={members}
+        {/* Inner scroll container */}
+        <div className={isMobile ? 'flex flex-col flex-1 overflow-hidden' : 'absolute inset-0 flex flex-col overflow-hidden'}>
+          <div className="flex-1 overflow-y-auto p-4 min-h-0 min-w-[180px]">
+            <GroupSidebar
+              groupName={group.name}
+              groupCode={group.code}
+              members={members}
+              currentMember={currentMember}
+              onLeave={handleLeave}
+            />
+          </div>
+
+          <GroupChat
+            groupId={group.id}
             currentMember={currentMember}
-            onLeave={handleLeave}
+            members={members}
+            collapsed={chatCollapsed}
+            onToggleCollapse={() => setChatCollapsed((c) => !c)}
           />
         </div>
 
-        <GroupChat
-          groupId={group.id}
-          currentMember={currentMember}
-          members={members}
-          collapsed={chatCollapsed}
-          onToggleCollapse={() => setChatCollapsed((c) => !c)}
-        />
+        {/* Edge toggle tab */}
+        <button
+          onClick={() => setSidebarOpen((o) => !o)}
+          className="absolute right-0 top-6 translate-x-full z-20 flex items-center justify-center h-8 w-5 bg-background border border-l-0 border-border rounded-r-lg shadow-sm hover:bg-accent transition-colors"
+          aria-label={sidebarOpen ? 'Collapse crew sidebar' : 'Expand crew sidebar'}
+        >
+          {sidebarOpen ? (
+            <ChevronLeft className="w-3 h-3 text-muted-foreground" />
+          ) : (
+            <ChevronRight className="w-3 h-3 text-muted-foreground" />
+          )}
+        </button>
       </div>
 
-      {/* Drag handle - desktop only */}
+      {/* Drag handle - desktop only, only when open */}
       {!isMobile && sidebarOpen && (
         <div
           className="w-1 shrink-0 cursor-col-resize hover:bg-primary/40 active:bg-primary/60 transition-colors"
@@ -395,28 +420,23 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <div className="shrink-0 bg-background px-3 sm:px-4 pt-3 pb-3 border-b border-border flex items-center gap-3">
-          <button
-            onClick={() => setSidebarOpen((o) => !o)}
-            className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-accent transition-colors shrink-0"
-            aria-label={sidebarOpen && !isMobile ? 'Collapse crew sidebar' : 'Open crew sidebar'}
-          >
-            {sidebarOpen && !isMobile ? (
-              <PanelLeftClose className="w-5 h-5" />
-            ) : (
-              <PanelLeftOpen className="w-5 h-5" />
-            )}
-          </button>
-          <div className="flex items-center gap-3 flex-1 min-w-0">
-            <FestivalLogo
-              lightUrl={group.events.image_url}
-              darkUrl={group.events.image_url_dark}
-              alt={group.events.name}
-              className="w-9 h-9 sm:w-11 sm:h-11 rounded-xl object-contain bg-muted shrink-0"
-            />
-            <h2 className="text-lg sm:text-2xl font-bold tracking-tight text-foreground truncate">
+        <div className="shrink-0 bg-background px-4 pt-3 pb-3 border-b border-border flex items-center justify-center gap-3">
+          <FestivalLogo
+            lightUrl={group.events.image_url}
+            darkUrl={group.events.image_url_dark}
+            alt={group.events.name}
+            className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-muted shrink-0"
+          />
+          <div className="min-w-0 text-left">
+            <h2
+              className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground truncate leading-tight"
+              style={getFontStyle(group.events.font)}
+            >
               {group.events.name}
             </h2>
+            <p className="text-xs text-muted-foreground/70">
+              {formatEventDates(group.events.date_start, group.events.date_end)}
+            </p>
           </div>
         </div>
         <div className="flex-1 overflow-auto px-2 py-4">

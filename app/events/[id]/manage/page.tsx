@@ -7,6 +7,7 @@ import { EventDetailsEditor } from '@/components/EventDetailsEditor'
 import { FestivalLogo } from '@/components/FestivalLogo'
 import { ManagePasswordGate } from '@/components/ManagePasswordGate'
 import { isManageUnlocked } from '@/app/actions/auth'
+import { getFontStyle, formatEventDates } from '@/lib/festival-font'
 import { Event } from '@/lib/types'
 
 export default async function ManagePage({ params }: { params: Promise<{ id: string }> }) {
@@ -43,8 +44,13 @@ export default async function ManagePage({ params }: { params: Promise<{ id: str
           alt={event.name}
           className="w-20 h-20 mx-auto mb-4 rounded-2xl object-contain bg-muted"
         />
-        <h1 className="text-4xl font-bold tracking-tight text-center">{event.name}</h1>
+        <h1 className="text-4xl font-bold tracking-tight text-center" style={getFontStyle(event.font)}>
+          {event.name}
+        </h1>
         <p className="text-muted-foreground text-center mt-1.5">{event.location}</p>
+        <p className="text-sm text-muted-foreground/60 text-center mt-0.5">
+          {formatEventDates(event.date_start, event.date_end)}
+        </p>
 
         <div className="mt-8">
           <EventDetailsEditor event={event} />

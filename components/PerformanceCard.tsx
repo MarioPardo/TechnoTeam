@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import { Performance, Plan, Member } from '@/lib/types'
 
 interface PerformanceCardProps {
@@ -49,19 +49,42 @@ function formatDuration(start: string, end: string) {
   return m === 0 ? `${h}h` : `${h}h ${m}min`
 }
 
+function toVisibleLightColor(hex: string): string {
+  const c = hex.replace('#', '')
+  const full = c.length === 3 ? c.split('').map((x) => x + x).join('') : c
+  const r = parseInt(full.slice(0, 2), 16)
+  const g = parseInt(full.slice(2, 4), 16)
+  const b = parseInt(full.slice(4, 6), 16)
+  const luminance = (0.299 * r + 0.587 * g + 0.114 * b) / 255
+  return luminance > 0.85 ? '#888888' : hex
+}
+
 export function PerformanceCard({ performance, plans, isMine, stageColor, timezone, onToggle }: PerformanceCardProps) {
   const [hovered, setHovered] = useState(false)
+  const [isDark, setIsDark] = useState(false)
+
+  useEffect(() => {
+    const el = document.documentElement
+    setIsDark(el.classList.contains('dark'))
+    const observer = new MutationObserver(() => setIsDark(el.classList.contains('dark')))
+    observer.observe(el, { attributeFilter: ['class'] })
+    return () => observer.disconnect()
+  }, [])
 
   const durationMin = Math.round(
     (new Date(performance.end_time).getTime() - new Date(performance.start_time).getTime()) / 60000
   )
   const compact = durationMin < 35
 
-  const colorStyle = stageColor
+  const effectiveColor = stageColor ? (!isDark ? toVisibleLightColor(stageColor) : stageColor) : null
+
+  const colorStyle = effectiveColor
     ? {
-        backgroundColor: isMine ? `${stageColor}40` : `${stageColor}1a`,
-        borderColor: isMine ? stageColor : `${stageColor}60`,
-        boxShadow: isMine ? `0 0 0 2px ${stageColor}50` : undefined,
+        backgroundColor: isMine
+          ? `${effectiveColor}${isDark ? '55' : 'bb'}`
+          : `${effectiveColor}${isDark ? '28' : '66'}`,
+        borderColor: isMine ? effectiveColor : `${effectiveColor}${isDark ? '66' : 'bb'}`,
+        boxShadow: isMine ? `0 0 0 2px ${effectiveColor}60` : undefined,
       }
     : undefined
 

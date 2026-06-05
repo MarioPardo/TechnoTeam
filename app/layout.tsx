@@ -1,15 +1,25 @@
 import type { Metadata } from 'next'
-import { Plus_Jakarta_Sans } from 'next/font/google'
+import {
+  Plus_Jakarta_Sans,
+  Space_Grotesk,
+  Bebas_Neue,
+  Raleway,
+  Oswald,
+  Unbounded,
+  Righteous,
+} from 'next/font/google'
 import Link from 'next/link'
 import { ThemeToggle } from '@/components/ThemeToggle'
 import { NavTabs } from '@/components/NavTabs'
 import './globals.css'
 
-const jakartaSans = Plus_Jakarta_Sans({
-  subsets: ['latin'],
-  variable: '--font-sans',
-  display: 'swap',
-})
+const jakartaSans = Plus_Jakarta_Sans({ subsets: ['latin'], variable: '--font-sans',       display: 'swap' })
+const spaceGrotesk = Space_Grotesk(  { subsets: ['latin'], variable: '--font-grotesk',    display: 'swap' })
+const bebasNeue    = Bebas_Neue(     { subsets: ['latin'], variable: '--font-bebas',      display: 'swap', weight: '400' })
+const raleway      = Raleway(        { subsets: ['latin'], variable: '--font-raleway',    display: 'swap' })
+const oswald       = Oswald(         { subsets: ['latin'], variable: '--font-oswald',     display: 'swap' })
+const unbounded    = Unbounded(      { subsets: ['latin'], variable: '--font-unbounded',  display: 'swap' })
+const righteous    = Righteous(      { subsets: ['latin'], variable: '--font-righteous',  display: 'swap', weight: '400' })
 
 export const metadata: Metadata = {
   title: 'TechnoTeam',
@@ -18,11 +28,11 @@ export const metadata: Metadata = {
 
 export default function RootLayout({ children }: { children: React.ReactNode }) {
   return (
-    <html lang="en" className={`${jakartaSans.variable} h-full antialiased`} suppressHydrationWarning>
+    <html lang="en" className={[jakartaSans.variable, spaceGrotesk.variable, bebasNeue.variable, raleway.variable, oswald.variable, unbounded.variable, righteous.variable, 'h-full antialiased'].join(' ')} suppressHydrationWarning>
       <head>
         <script
           dangerouslySetInnerHTML={{
-            __html: `(function(){var t=localStorage.getItem('theme'),p=window.matchMedia('(prefers-color-scheme: dark)').matches;if(t==='dark'||(t===null&&p))document.documentElement.classList.add('dark')})()`,
+            __html: `(function(){var t=localStorage.getItem('theme');if(t!=='light')document.documentElement.classList.add('dark')})()`,
           }}
         />
       </head>

@@ -42,6 +42,20 @@
 - [x] Crew Search page — placeholder with upcoming search-by-festival/crew-name feature
 - [x] Group codes saved to localStorage on join so they appear in Your Events
 
+### Guest (No-Account) Experience
+- [x] Event lineup browsable without joining a group
+- [x] Tab label is "All View" instead of "Group View" for guests
+- [x] Tap a performance to mark personal interest — card highlights and the pick is saved
+- [x] "My Schedule" shows only the guest's marked performances
+- [x] Guest identity (`guest-id` cookie) and picks (`event-picks-{eventId}` cookie) persist for 1 year via client-set cookies; no account needed
+
+### Responsive / Mobile
+- [x] Top nav scrolls horizontally on narrow screens — no cutoff
+- [x] Sidebar in the event view (create/join group) is collapsible — toggle button at top of lineup area
+- [x] Sidebar in the group planning view (crew list + chat) is collapsible
+- [x] On mobile (< 768 px): sidebar slides in as a fixed overlay with a backdrop; tap outside to dismiss
+- [x] On desktop: sidebar collapses in-flow with a smooth width transition; drag-to-resize still works when open
+
 ### Admin / Access Control
 - [x] `MANAGE_PASSWORD` env var — master password for the entire site; unlocks manage pages and the "Add New Event" button
 - [x] Per-event edit password — stored as SHA-256 hash in the database; master password always bypasses it

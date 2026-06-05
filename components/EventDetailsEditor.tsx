@@ -6,6 +6,8 @@ import { supabase } from '@/lib/supabase'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
+import { FESTIVAL_FONTS, getFontStyle } from '@/lib/festival-font'
+import { cn } from '@/lib/utils'
 import { Event } from '@/lib/types'
 
 type Link = { label: string; url: string }
@@ -140,6 +142,8 @@ function LogoUploadBox({
 }
 
 export function EventDetailsEditor({ event }: { event: Event }) {
+  const [name, setName] = useState(event.name)
+  const [font, setFont] = useState<string>(event.font ?? 'default')
   const [imageUrl, setImageUrl] = useState(event.image_url ?? '')
   const [imageDarkUrl, setImageDarkUrl] = useState(event.image_url_dark ?? '')
   const [description, setDescription] = useState(event.description ?? '')
@@ -158,6 +162,8 @@ export function EventDetailsEditor({ event }: { event: Event }) {
     setSaved(false)
     startSave(async () => {
       await updateEvent(event.id, {
+        name: name.trim() || event.name,
+        font: font === 'default' ? null : font,
         image_url: imageUrl || null,
         image_url_dark: imageDarkUrl || null,
         description: description.trim() || null,
@@ -167,9 +173,52 @@ export function EventDetailsEditor({ event }: { event: Event }) {
     })
   }
 
+  const previewName = name.trim() || event.name
+
   return (
     <div className="bg-card border border-border rounded-2xl p-6 shadow-sm flex flex-col gap-6">
       <h2 className="text-base font-semibold text-foreground">Festival details</h2>
+
+      {/* Festival name */}
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-sm">Festival name</Label>
+        <Input
+          value={name}
+          onChange={(e) => { setName(e.target.value); setSaved(false) }}
+          placeholder="Festival name"
+          className="text-sm"
+        />
+      </div>
+
+      {/* Display font */}
+      <div className="flex flex-col gap-2">
+        <Label className="text-sm">Display font</Label>
+        <div className="grid grid-cols-2 gap-2">
+          {FESTIVAL_FONTS.map((f) => (
+            <button
+              key={f.key}
+              type="button"
+              onClick={() => { setFont(f.key); setSaved(false) }}
+              className={cn(
+                'px-3 py-2.5 rounded-xl border-2 text-left transition-colors',
+                font === f.key
+                  ? 'border-primary bg-primary/5'
+                  : 'border-border hover:border-muted-foreground/30',
+              )}
+            >
+              <div className="text-[10px] text-muted-foreground mb-1 font-medium uppercase tracking-wide">
+                {f.label}
+              </div>
+              <div
+                className="text-base font-bold truncate leading-tight"
+                style={getFontStyle(f.key)}
+              >
+                {previewName}
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
 
       {/* Logos */}
       <div className="flex flex-col gap-2">

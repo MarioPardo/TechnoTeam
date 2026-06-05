@@ -48,10 +48,12 @@ export async function createEvent(formData: FormData) {
 export async function updateEvent(
   id: string,
   data: {
+    name?: string
     image_url?: string | null
     image_url_dark?: string | null
     description?: string | null
     links?: Array<{ label: string; url: string }>
+    font?: string | null
   },
 ) {
   const { error } = await supabase

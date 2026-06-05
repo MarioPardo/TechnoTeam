@@ -5,7 +5,7 @@ import { createHash } from 'crypto'
 
 const COOKIE_NAME = 'manage_auth'
 const EVENT_COOKIE_PREFIX = 'event_auth_'
-const COOKIE_MAX_AGE = 60 * 60 * 24 * 7 // 7 days
+const COOKIE_MAX_AGE = 60 * 60 * 24 * 365 // 1 year
 
 function hashPassword(pw: string) {
   return createHash('sha256').update(pw).digest('hex')

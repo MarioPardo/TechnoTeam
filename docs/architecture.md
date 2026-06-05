@@ -82,9 +82,28 @@ When any member toggles a plan, all clients in the same group receive the update
 
 ## Identity
 
-No accounts. Members join with a name. A `session_token` (UUID) is generated on join, stored in `localStorage` under `festival-session-token`, and used to identify the member across page loads.
+No accounts. Two levels of identity:
 
-When a member successfully joins any group, the group's 6-char code is appended to `festival-my-groups` (a JSON array in `localStorage`). The Your Events page reads this array to show the user's crews without requiring a login.
+**Group member** — joins with a name. A `session_token` (UUID) is generated on join, stored in `localStorage` under `festival-session-token`, and used to identify the member across page loads. When a member joins any group, the group's 6-char code is appended to the `festival-crews` cookie so it appears in Your Events.
+
+**Guest (no group)** — can browse any event lineup and mark performances without joining a group. Two cookies persist their state client-side for 1 year:
+
+| Cookie | Content | Set by |
+|---|---|---|
+| `guest-id` | Random alphanumeric ID generated on first visit | `lib/guest-picks.ts` |
+| `event-picks-{eventId}` | Comma-separated performance UUIDs the guest picked | `lib/guest-picks.ts` |
+
+Guest picks are purely client-side — they are never written to the database. The `EventView` component converts the cookie values into in-memory `Plan` objects and passes them to `LineupGrid`, where the existing toggle and "My Schedule" logic handles them identically to real group plans.
+
+## Sidebar Layout
+
+Both `EventView` and `GroupPlanningView` use the same collapsible sidebar pattern:
+
+- A `sidebarOpen` boolean (default `true`) controls visibility.
+- On mount, a `resize` listener checks `window.innerWidth < 768` and collapses the sidebar on mobile.
+- **Mobile:** sidebar is `position: fixed`, translates off-screen when closed, overlays content with a backdrop when open.
+- **Desktop:** sidebar is in the flex row; collapsing animates `width` to 0 via `transition-[width]`. Drag-to-resize is only active when the sidebar is open on desktop.
+- A `PanelLeftOpen`/`PanelLeftClose` toggle button sits at the top-left of the main content area on both views.
 
 ## Access Control
 

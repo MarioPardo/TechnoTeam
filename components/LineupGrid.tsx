@@ -11,6 +11,7 @@ interface LineupGridProps {
   plans: (Plan & { members: Member })[]
   currentMemberId: string
   timezone: string
+  guestMode?: boolean
   onToggle: (performanceId: string) => void
 }
 
@@ -39,7 +40,7 @@ function buildTimeMarkers(minSlot: number, maxSlot: number, tz: string): TimeMar
   return markers
 }
 
-export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle }: LineupGridProps) {
+export function LineupGrid({ stages, plans, currentMemberId, timezone, guestMode = false, onToggle }: LineupGridProps) {
   const allPerfs = stages.flatMap((s) => s.performances)
 
   const days = useMemo(() => {
@@ -157,7 +158,7 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle 
               : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
           }`}
         >
-          Group View
+          {guestMode ? 'All View' : 'Group View'}
         </button>
         <button
           onClick={() => setViewMode('mine')}
