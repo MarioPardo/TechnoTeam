@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import { Performance, Plan, Member } from '@/lib/types'
 
 interface PerformanceCardProps {
@@ -49,6 +50,8 @@ function formatDuration(start: string, end: string) {
 }
 
 export function PerformanceCard({ performance, plans, isMine, stageColor, timezone, onToggle }: PerformanceCardProps) {
+  const [hovered, setHovered] = useState(false)
+
   const durationMin = Math.round(
     (new Date(performance.end_time).getTime() - new Date(performance.start_time).getTime()) / 60000
   )
@@ -67,35 +70,63 @@ export function PerformanceCard({ performance, plans, isMine, stageColor, timezo
     : 'bg-muted/60 border-border hover:bg-muted hover:border-border/80'
 
   return (
-    <button
-      onClick={onToggle}
-      className={`w-full h-full rounded-xl border text-left px-2 py-1.5 overflow-hidden transition-all hover:brightness-105 ${
-        stageColor ? '' : fallbackClass
-      }`}
-      style={colorStyle}
+    <div
+      className="relative w-full h-full"
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
     >
-      <div className={`font-semibold text-foreground truncate ${compact ? 'text-xs' : 'text-sm'}`}>
-        {performance.artist}
-      </div>
-      {!compact && (
-        <div className="text-[11px] text-muted-foreground mt-0.5">
-          {formatStartLabel(performance.start_time, timezone)} · {formatDuration(performance.start_time, performance.end_time)}
+      {hovered && plans.length > 0 && (
+        <div className="absolute bottom-full left-1/2 -translate-x-1/2 mb-2 z-[200] pointer-events-none">
+          <div className="bg-popover border border-border rounded-xl shadow-lg px-3 py-2.5 min-w-[120px]">
+            <p className="text-[10px] font-semibold uppercase tracking-wider text-muted-foreground mb-2">
+              Interested
+            </p>
+            <div className="flex flex-col gap-1.5">
+              {plans.map((plan, i) => (
+                <div key={plan.id} className="flex items-center gap-2 whitespace-nowrap">
+                  <span
+                    className={`w-4 h-4 rounded-full text-[8px] font-bold text-white inline-flex items-center justify-center shrink-0 ${MEMBER_COLORS[i % MEMBER_COLORS.length]}`}
+                  >
+                    {plan.members.name[0].toUpperCase()}
+                  </span>
+                  <span className="text-xs text-foreground">{plan.members.name}</span>
+                </div>
+              ))}
+            </div>
+          </div>
         </div>
       )}
-      {plans.length > 0 && (
-        <div className="flex flex-wrap gap-0.5 mt-1">
-          {plans.slice(0, 6).map((plan, i) => (
-            <MemberDot
-              key={plan.id}
-              name={plan.members.name}
-              colorClass={MEMBER_COLORS[i % MEMBER_COLORS.length]}
-            />
-          ))}
-          {plans.length > 6 && (
-            <span className="text-[9px] text-muted-foreground ml-0.5 self-center">+{plans.length - 6}</span>
-          )}
+
+      <button
+        onClick={onToggle}
+        className={`w-full h-full rounded-xl border text-left px-2 py-1.5 overflow-hidden transition-all hover:brightness-105 ${
+          stageColor ? '' : fallbackClass
+        }`}
+        style={colorStyle}
+      >
+        <div className={`font-semibold text-foreground ${compact ? 'text-xs' : 'text-sm'}`}>
+          {performance.artist}
         </div>
-      )}
-    </button>
+        {!compact && (
+          <div className="text-[11px] text-muted-foreground mt-0.5">
+            {formatStartLabel(performance.start_time, timezone)} · {formatDuration(performance.start_time, performance.end_time)}
+          </div>
+        )}
+        {plans.length > 0 && (
+          <div className="flex flex-wrap gap-0.5 mt-1">
+            {plans.slice(0, 6).map((plan, i) => (
+              <MemberDot
+                key={plan.id}
+                name={plan.members.name}
+                colorClass={MEMBER_COLORS[i % MEMBER_COLORS.length]}
+              />
+            ))}
+            {plans.length > 6 && (
+              <span className="text-[9px] text-muted-foreground ml-0.5 self-center">+{plans.length - 6}</span>
+            )}
+          </div>
+        )}
+      </button>
+    </div>
   )
 }

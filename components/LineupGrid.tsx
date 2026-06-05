@@ -58,6 +58,8 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle 
       .map(([key, label]) => ({ key, label }))
   }, [allPerfs, timezone])
 
+  const [viewMode, setViewMode] = useState<'group' | 'mine'>('group')
+
   const [selectedDay, setSelectedDay] = useState<string>('')
   const activeDay = days.find((d) => d.key === selectedDay)?.key ?? days[0]?.key ?? ''
 
@@ -106,11 +108,15 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle 
     () =>
       orderedStages.map((stage) => ({
         ...stage,
-        performances: stage.performances.filter(
-          (perf) => toDateKey(perf.start_time, timezone) === activeDay,
-        ),
+        performances: stage.performances.filter((perf) => {
+          if (toDateKey(perf.start_time, timezone) !== activeDay) return false
+          if (viewMode === 'mine') {
+            return plans.some((p) => p.performance_id === perf.id && p.member_id === currentMemberId)
+          }
+          return true
+        }),
       })),
-    [orderedStages, activeDay, timezone],
+    [orderedStages, activeDay, timezone, viewMode, plans, currentMemberId],
   )
 
   const { minTime, totalHeight, timeMarkers } = useMemo(() => {
@@ -141,6 +147,30 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle 
 
   return (
     <div>
+      {/* View mode tabs */}
+      <div className="flex gap-2 mb-4">
+        <button
+          onClick={() => setViewMode('group')}
+          className={`px-6 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap ${
+            viewMode === 'group'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+          }`}
+        >
+          Group View
+        </button>
+        <button
+          onClick={() => setViewMode('mine')}
+          className={`px-6 py-2 text-sm font-semibold rounded-full transition-colors whitespace-nowrap ${
+            viewMode === 'mine'
+              ? 'bg-primary text-primary-foreground'
+              : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+          }`}
+        >
+          My Schedule
+        </button>
+      </div>
+
       {/* Day tabs */}
       {days.length > 0 && (
         <div className="flex gap-2 flex-wrap mb-4">
@@ -162,7 +192,9 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle 
 
       {dayPerfs.length === 0 ? (
         <div className="text-center text-muted-foreground py-20">
-          No sets scheduled for {days.find((d) => d.key === activeDay)?.label ?? 'this day'}.
+          {viewMode === 'mine'
+            ? "You haven't selected any sets for this day yet. Switch to Group View and tap a set to add it."
+            : `No sets scheduled for ${days.find((d) => d.key === activeDay)?.label ?? 'this day'}.`}
         </div>
       ) : (
         <div>
@@ -237,7 +269,7 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle 
                   return (
                     <div
                       key={perf.id}
-                      className="absolute left-1 right-1 z-20"
+                      className="absolute left-1 right-1"
                       style={{ top, height }}
                     >
                       <PerformanceCard
