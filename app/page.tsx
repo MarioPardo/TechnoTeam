@@ -1,7 +1,9 @@
 import Link from 'next/link'
 import { getEvents } from './actions/events'
+import { isManageUnlocked } from './actions/auth'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
+import { buttonVariants } from '@/components/ui/button'
 import { FestivalLogo } from '@/components/FestivalLogo'
 import { Event } from '@/lib/types'
 
@@ -15,8 +17,10 @@ function formatDateRange(start: string, end: string) {
 
 export default async function HomePage() {
   let events: Event[] = []
+  let isAdmin = false
   try {
     events = await getEvents()
+    isAdmin = await isManageUnlocked()
   } catch {
     // Supabase not configured yet
   }
@@ -33,7 +37,14 @@ export default async function HomePage() {
       </div>
 
       <section>
-        <h2 className="text-lg font-semibold mb-4">Available Events</h2>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-lg font-semibold">Available Events</h2>
+          {isAdmin && (
+            <Link href="/events/new" className={buttonVariants({ size: 'sm' })}>
+              Add New Event
+            </Link>
+          )}
+        </div>
 
         {events.length === 0 ? (
           <div className="border-2 border-dashed border-border rounded-2xl p-14 text-center">

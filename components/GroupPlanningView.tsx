@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback, useRef } from 'react'
 import { supabase } from '@/lib/supabase'
 import { signInOrJoin, leaveGroup } from '@/app/actions/members'
 import { togglePlan } from '@/app/actions/plans'
+import { addCrewCode } from '@/lib/crew-cookies'
 import { Member, Plan, Performance, Stage, Group } from '@/lib/types'
 import { LineupGrid } from './LineupGrid'
 import { GroupSidebar } from './GroupSidebar'
@@ -24,15 +25,6 @@ interface GroupPlanningViewProps {
 }
 
 const SESSION_KEY = 'festival-session-token'
-const MY_GROUPS_KEY = 'festival-my-groups'
-
-function addMyGroup(code: string) {
-  const raw = localStorage.getItem(MY_GROUPS_KEY)
-  const codes: string[] = raw ? JSON.parse(raw) : []
-  if (!codes.includes(code)) {
-    localStorage.setItem(MY_GROUPS_KEY, JSON.stringify([...codes, code]))
-  }
-}
 const MIN_SIDEBAR_WIDTH = 160
 const MAX_SIDEBAR_WIDTH = 420
 const DEFAULT_SIDEBAR_WIDTH = 208
@@ -60,8 +52,11 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     const token = localStorage.getItem(SESSION_KEY)
     if (!token) return
     const found = group.members.find((m) => m.session_token === token)
-    if (found) setCurrentMember(found)
-  }, [group.members])
+    if (found) {
+      setCurrentMember(found)
+      addCrewCode(group.code)
+    }
+  }, [group.members, group.code])
 
   useEffect(() => {
     const channel = supabase
@@ -128,7 +123,7 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     try {
       const member = await signInOrJoin(group.id, joinName.trim(), joinPassword || undefined)
       localStorage.setItem(SESSION_KEY, member.session_token)
-      addMyGroup(group.code)
+      addCrewCode(group.code)
       setCurrentMember(member)
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : 'Something went wrong')
@@ -142,7 +137,7 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     try {
       const member = await signInOrJoin(group.id, name)
       localStorage.setItem(SESSION_KEY, member.session_token)
-      addMyGroup(group.code)
+      addCrewCode(group.code)
       setCurrentMember(member)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'
@@ -160,7 +155,7 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     try {
       const member = await signInOrJoin(group.id, quickSignIn.name, quickSignIn.password)
       localStorage.setItem(SESSION_KEY, member.session_token)
-      addMyGroup(group.code)
+      addCrewCode(group.code)
       setCurrentMember(member)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'
@@ -342,7 +337,7 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
             groupName={group.name}
             groupCode={group.code}
             members={members}
-            currentMemberId={currentMember.id}
+            currentMember={currentMember}
             onLeave={handleLeave}
           />
         </div>
@@ -363,23 +358,25 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
       />
 
       {/* Grid */}
-      <div className="flex-1 overflow-auto py-4 px-2">
-        <div className="sticky top-0 bg-background z-20 pb-3 mb-1 text-center">
+      <div className="flex-1 flex flex-col overflow-hidden">
+        <div className="shrink-0 bg-background px-2 pt-4 pb-3 text-center border-b border-border">
           <FestivalLogo
             lightUrl={group.events.image_url}
             darkUrl={group.events.image_url_dark}
             alt={group.events.name}
             className="w-14 h-14 mx-auto mb-2 rounded-xl object-contain bg-muted"
           />
-          <h2 className="text-2xl font-bold tracking-tight text-foreground">{group.events.name}</h2>
+          <h2 className="text-4xl font-bold tracking-tight text-foreground">{group.events.name}</h2>
         </div>
-        <LineupGrid
-          stages={stages}
-          plans={plans}
-          currentMemberId={currentMember.id}
-          timezone={(group as any).events?.timezone ?? 'UTC'}
-          onToggle={handleToggle}
-        />
+        <div className="flex-1 overflow-auto px-2 py-4">
+          <LineupGrid
+            stages={stages}
+            plans={plans}
+            currentMemberId={currentMember.id}
+            timezone={(group as any).events?.timezone ?? 'UTC'}
+            onToggle={handleToggle}
+          />
+        </div>
       </div>
     </div>
   )

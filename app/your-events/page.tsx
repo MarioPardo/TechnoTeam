@@ -4,12 +4,11 @@ import { useEffect, useState } from 'react'
 import Link from 'next/link'
 import { getGroupsByCodes } from '@/app/actions/groups'
 import { buttonVariants } from '@/components/ui/button'
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { FestivalLogo } from '@/components/FestivalLogo'
+import { getCrewCodes } from '@/lib/crew-cookies'
 import { cn } from '@/lib/utils'
-
-const MY_GROUPS_KEY = 'festival-my-groups'
 
 function formatDateRange(start: string, end: string) {
   const s = new Date(start + 'T00:00:00')
@@ -41,8 +40,7 @@ export default function YourEventsPage() {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
-    const raw = localStorage.getItem(MY_GROUPS_KEY)
-    const codes: string[] = raw ? JSON.parse(raw) : []
+    const codes = getCrewCodes()
     if (codes.length === 0) {
       setLoading(false)
       return
@@ -89,7 +87,7 @@ export default function YourEventsPage() {
           {groups.map((group) => (
             <Link key={group.id} href={`/groups/${group.code}`} className="block group">
               <Card className="hover:shadow-md transition-all duration-200 hover:border-primary/30 group-hover:-translate-y-0.5">
-                <CardHeader className="pb-2">
+                <CardContent className="pt-5 pb-4">
                   <div className="flex items-start gap-4">
                     {(group.events.image_url || group.events.image_url_dark) && (
                       <FestivalLogo
@@ -99,31 +97,31 @@ export default function YourEventsPage() {
                         className="w-12 h-12 rounded-xl object-contain shrink-0 bg-muted"
                       />
                     )}
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-start justify-between gap-4">
+                    <div className="flex-1 min-w-0 flex flex-col gap-3">
+                      {/* Festival info at top */}
+                      <div className="flex items-start justify-between gap-3">
                         <div>
-                          <CardTitle className="group-hover:text-primary transition-colors">
+                          <p className="text-lg font-bold leading-tight group-hover:text-primary transition-colors">
                             {group.events.name}
-                          </CardTitle>
-                          <p className="text-sm text-primary/80 font-medium mt-0.5">{group.name}</p>
+                          </p>
+                          <p className="text-sm text-muted-foreground mt-0.5">
+                            {formatDateRange(group.events.date_start, group.events.date_end)}
+                            {' · '}
+                            {group.events.location}
+                          </p>
                         </div>
-                        <Badge variant="secondary" className="shrink-0">
-                          {group.events.location}
+                        <span className="font-mono text-xs text-muted-foreground/60 shrink-0 mt-1">{group.code}</span>
+                      </div>
+
+                      {/* Crew name at bottom */}
+                      <div className="flex items-center gap-2">
+                        <Badge variant="secondary" className="text-xs font-semibold">
+                          {group.name}
                         </Badge>
                       </div>
-                      <CardDescription>
-                        {formatDateRange(group.events.date_start, group.events.date_end)}
-                        {' · '}
-                        <span className="font-mono text-xs">{group.code}</span>
-                      </CardDescription>
                     </div>
                   </div>
-                </CardHeader>
-                {group.events.description && (
-                  <CardContent>
-                    <p className="text-sm text-muted-foreground line-clamp-2">{group.events.description}</p>
-                  </CardContent>
-                )}
+                </CardContent>
               </Card>
             </Link>
           ))}

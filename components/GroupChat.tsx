@@ -101,7 +101,7 @@ export function GroupChat({ groupId, currentMember, members, collapsed, onToggle
 
       {!collapsed && (
         <>
-          <div className="overflow-y-auto px-3 py-2 flex flex-col gap-2.5" style={{ height: 200 }}>
+          <div className="overflow-y-auto px-3 py-2 flex flex-col gap-2.5 max-h-56 min-h-[80px]">
             {messages.length === 0 && (
               <p className="text-xs text-muted-foreground/50 text-center mt-4">No messages yet. Say hi!</p>
             )}

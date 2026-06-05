@@ -18,7 +18,12 @@ events
   date_start    date
   date_end      date
   location      text
+  timezone      text        (IANA tz, e.g. "Europe/London"; auto-detected from location on creation)
   description   text
+  image_url     text        (public URL from Supabase Storage event-images bucket)
+  image_url_dark text       (optional dark-mode variant, set via manage page)
+  links         jsonb       (array of {label, url}; set via manage page)
+  password_hash text        (SHA-256 of the edit password; null = no restriction)
   created_at    timestamptz
 
 stages
@@ -80,3 +85,18 @@ When any member toggles a plan, all clients in the same group receive the update
 No accounts. Members join with a name. A `session_token` (UUID) is generated on join, stored in `localStorage` under `festival-session-token`, and used to identify the member across page loads.
 
 When a member successfully joins any group, the group's 6-char code is appended to `festival-my-groups` (a JSON array in `localStorage`). The Your Events page reads this array to show the user's crews without requiring a login.
+
+## Access Control
+
+Two layers of password protection, both stored as httpOnly cookies (7-day expiry):
+
+| Layer | Env / DB field | Cookie | Controls |
+|---|---|---|---|
+| Site-wide admin | `MANAGE_PASSWORD` env var | `manage_auth` | Manage pages for all events, "Add New Event" button |
+| Per-event edit | `events.password_hash` (SHA-256) | `event_auth_{id}` | Manage page for that specific event |
+
+The site-wide admin password always bypasses per-event passwords. Attendees (group members) are never asked for either password — they only see event and group pages.
+
+## Storage
+
+Supabase Storage bucket `event-images` (public) holds event logos uploaded at creation time. The public URL is stored in `events.image_url`.

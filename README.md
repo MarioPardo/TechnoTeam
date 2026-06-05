@@ -22,7 +22,7 @@ Coordinate your festival crew. Plan your schedule together, in real time.
 
 ```bash
 cp .env.local.example .env.local
-# fill in NEXT_PUBLIC_SUPABASE_URL and NEXT_PUBLIC_SUPABASE_ANON_KEY
+# fill in NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and MANAGE_PASSWORD
 
 npm install
 npm run dev

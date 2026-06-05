@@ -165,7 +165,7 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle 
           No sets scheduled for {days.find((d) => d.key === activeDay)?.label ?? 'this day'}.
         </div>
       ) : (
-        <div className="overflow-x-auto">
+        <div>
           {/* Stage name headers */}
           <div className="flex min-w-full sticky top-0 z-20 bg-background border-b border-border">
             <div className="w-28 shrink-0" />
@@ -177,7 +177,7 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, onToggle 
                 onDragOver={(e) => handleColumnDragOver(e, stage.id)}
                 onDrop={() => handleColumnDrop(stage.id)}
                 onDragEnd={() => { setDraggedId(null); setDragOverId(null) }}
-                className={`flex-1 min-w-[180px] px-3 py-2.5 text-sm font-semibold text-foreground border-l border-border flex items-center justify-center gap-1.5 cursor-grab select-none transition-opacity ${
+                className={`flex-1 min-w-[180px] px-3 py-2.5 text-xl font-semibold text-foreground border-l border-border flex items-center justify-center gap-1.5 cursor-grab select-none transition-opacity ${
                   draggedId === stage.id ? 'opacity-40' : dragOverId === stage.id ? 'bg-muted/60' : ''
                 }`}
                 style={stage.color ? { borderBottom: `3px solid ${stage.color}` } : {}}

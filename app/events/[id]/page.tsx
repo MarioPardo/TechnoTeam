@@ -2,10 +2,12 @@ import { notFound } from 'next/navigation'
 import Link from 'next/link'
 import { getEvent } from '@/app/actions/events'
 import { getStagesWithPerformances } from '@/app/actions/stages'
+import { isManageUnlocked, isEventUnlocked } from '@/app/actions/auth'
 import { buttonVariants } from '@/components/ui/button'
 import { CreateGroupForm } from '@/components/CreateGroupForm'
 import { JoinGroupForm } from '@/components/JoinGroupForm'
 import { FestivalLogo } from '@/components/FestivalLogo'
+import { EventPasswordGate } from '@/components/EventPasswordGate'
 import { Event } from '@/lib/types'
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -21,6 +23,16 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   }
 
   if (!event) notFound()
+
+  if (event.password_hash) {
+    const [manageUnlocked, eventUnlocked] = await Promise.all([
+      isManageUnlocked(),
+      isEventUnlocked(id, event.password_hash),
+    ])
+    if (!manageUnlocked && !eventUnlocked) {
+      return <EventPasswordGate eventId={id} eventName={event.name} passwordHash={event.password_hash} />
+    }
+  }
 
   const hasLineup = stages.some((s: any) => s.performances?.length > 0)
 

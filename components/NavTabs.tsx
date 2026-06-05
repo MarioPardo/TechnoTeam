@@ -8,6 +8,8 @@ const tabs = [
   { label: 'Home', href: '/' },
   { label: 'Your Events', href: '/your-events' },
   { label: 'Crew Search', href: '/crew-search' },
+  { label: 'Your Crews', href: '/your-crews' },
+  { label: 'Feedback', href: '/feedback' },
 ]
 
 export function NavTabs() {

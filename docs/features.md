@@ -8,8 +8,12 @@
 ## Core Features
 
 ### Event Management
-- [x] Create an event (name, dates, location, description)
+- [x] Create an event (name, dates, location, timezone, description)
 - [x] List all events on home page
+- [x] "Add New Event" button on home page — visible only to admins (manage password unlocked)
+- [x] Logo upload (PNG/JPG/SVG/WebP) stored in Supabase Storage (`event-images` bucket)
+- [x] Timezone auto-detected from location via Nominatim geocoding; user can override
+- [x] Optional edit password per event — required to open the manage/edit page for that event (does not affect attendee access)
 - [x] Add stages to an event
 - [x] Add performances to a stage (artist, start time, end time)
 - [x] Delete stages and performances
@@ -37,6 +41,11 @@
 - [x] Join page (`/join`) — enter a crew code; accepts `?code=` query param for invite links
 - [x] Crew Search page — placeholder with upcoming search-by-festival/crew-name feature
 - [x] Group codes saved to localStorage on join so they appear in Your Events
+
+### Admin / Access Control
+- [x] `MANAGE_PASSWORD` env var — master password for the entire site; unlocks manage pages and the "Add New Event" button
+- [x] Per-event edit password — stored as SHA-256 hash in the database; master password always bypasses it
+- [x] Password state stored in httpOnly cookies (7-day expiry)
 
 ### Deployment
 - [x] Vercel deployment ready (builds cleanly)

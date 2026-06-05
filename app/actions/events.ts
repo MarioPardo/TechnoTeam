@@ -2,6 +2,7 @@
 
 import { redirect } from 'next/navigation'
 import { revalidatePath } from 'next/cache'
+import { createHash } from 'crypto'
 import { supabase } from '@/lib/supabase'
 import { Event } from '@/lib/types'
 
@@ -12,11 +13,29 @@ export async function createEvent(formData: FormData) {
   const location = formData.get('location') as string
   const timezone = (formData.get('timezone') as string) || 'UTC'
   const description = formData.get('description') as string
-  const image_url = formData.get('image_url') as string
+  const password = (formData.get('password') as string)?.trim()
+
+  const password_hash = password
+    ? createHash('sha256').update(password).digest('hex')
+    : null
+
+  // Upload logo if provided
+  let image_url: string | null = null
+  const imageFile = formData.get('image_file') as File | null
+  if (imageFile && imageFile.size > 0) {
+    const ext = imageFile.name.split('.').pop()?.toLowerCase() || 'png'
+    const filename = `${Date.now()}-${Math.random().toString(36).slice(2)}.${ext}`
+    const bytes = new Uint8Array(await imageFile.arrayBuffer())
+    const { error: uploadError } = await supabase.storage
+      .from('event-images')
+      .upload(filename, bytes, { contentType: imageFile.type })
+    if (uploadError) throw new Error(`Image upload failed: ${uploadError.message}`)
+    image_url = supabase.storage.from('event-images').getPublicUrl(filename).data.publicUrl
+  }
 
   const { data, error } = await supabase
     .from('events')
-    .insert({ name, date_start, date_end, location, timezone, description: description || null, image_url: image_url || null } as any)
+    .insert({ name, date_start, date_end, location, timezone, description: description || null, image_url, password_hash } as any)
     .select()
     .single()
 

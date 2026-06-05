@@ -82,3 +82,35 @@ export async function leaveGroup(memberId: string): Promise<void> {
 
   if (error) throw new Error(error.message)
 }
+
+export async function updateMemberPassword(
+  memberId: string,
+  sessionToken: string,
+  currentPassword: string,
+  newPassword: string,
+): Promise<void> {
+  const { data: member, error: fetchError } = await supabase
+    .from('members')
+    .select('id, session_token, password_hash')
+    .eq('id', memberId)
+    .single()
+
+  if (fetchError || !member) throw new Error('Member not found')
+  if ((member as any).session_token !== sessionToken) throw new Error('Unauthorized')
+
+  const storedHash = (member as any).password_hash as string | null
+
+  if (storedHash) {
+    if (!currentPassword) throw new Error('Current password is required')
+    if (!verifyPassword(currentPassword, storedHash)) throw new Error('Current password is incorrect')
+  }
+
+  const newHash = newPassword ? hashPassword(newPassword) : null
+
+  const { error } = await supabase
+    .from('members')
+    .update({ password_hash: newHash } as any)
+    .eq('id', memberId)
+
+  if (error) throw new Error(error.message)
+}
