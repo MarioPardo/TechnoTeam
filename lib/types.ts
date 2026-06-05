@@ -41,7 +41,11 @@ export type Event = {
   date_start: string
   date_end: string
   location: string
+  timezone: string
   description: string | null
+  image_url: string | null
+  image_url_dark: string | null
+  links: Array<{ label: string; url: string }> | null
   created_at: string
 }
 
@@ -50,6 +54,7 @@ export type Stage = {
   event_id: string
   name: string
   order_index: number
+  color: string | null
   created_at: string
 }
 
@@ -83,6 +88,14 @@ export type Plan = {
   id: string
   member_id: string
   performance_id: string
+  created_at: string
+}
+
+export type Message = {
+  id: string
+  group_id: string
+  member_id: string
+  content: string
   created_at: string
 }
 

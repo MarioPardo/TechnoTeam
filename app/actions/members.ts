@@ -1,13 +1,63 @@
 'use server'
 
+import { scryptSync, randomBytes, timingSafeEqual } from 'crypto'
+import { v4 as uuidv4 } from 'uuid'
 import { supabase } from '@/lib/supabase'
 import { Member } from '@/lib/types'
 
-export async function joinGroup(groupId: string, name: string, sessionToken: string): Promise<Member> {
+const MEMBER_COLS = 'id, group_id, name, session_token, created_at'
+
+function hashPassword(password: string): string {
+  const salt = randomBytes(16).toString('hex')
+  const hash = scryptSync(password, salt, 64).toString('hex')
+  return `${salt}:${hash}`
+}
+
+function verifyPassword(password: string, stored: string): boolean {
+  const [salt, hashHex] = stored.split(':')
+  if (!salt || !hashHex) return false
+  const inputHash = scryptSync(password, salt, 64)
+  const storedHash = Buffer.from(hashHex, 'hex')
+  if (inputHash.length !== storedHash.length) return false
+  return timingSafeEqual(inputHash, storedHash)
+}
+
+export async function signInOrJoin(
+  groupId: string,
+  name: string,
+  password?: string
+): Promise<Member> {
+  const trimmedName = name.trim()
+
+  const { data: existing } = await supabase
+    .from('members')
+    .select(`${MEMBER_COLS}, password_hash`)
+    .eq('group_id', groupId)
+    .ilike('name', trimmedName)
+    .maybeSingle()
+
+  if (existing) {
+    const storedHash = (existing as any).password_hash as string | null
+    if (storedHash) {
+      if (!password) throw new Error('This member has a password — please enter it')
+      if (!verifyPassword(password, storedHash)) throw new Error('Wrong password')
+    }
+    const { password_hash: _ph, ...member } = existing as any
+    return member as Member
+  }
+
+  const token = uuidv4()
+  const passwordHash = password ? hashPassword(password) : null
+
   const { data, error } = await supabase
     .from('members')
-    .insert({ group_id: groupId, name, session_token: sessionToken } as any)
-    .select()
+    .insert({
+      group_id: groupId,
+      name: trimmedName,
+      session_token: token,
+      ...(passwordHash ? { password_hash: passwordHash } : {}),
+    } as any)
+    .select(MEMBER_COLS)
     .single()
 
   if (error) throw new Error(error.message)
@@ -17,9 +67,18 @@ export async function joinGroup(groupId: string, name: string, sessionToken: str
 export async function getMemberByToken(sessionToken: string): Promise<Member | null> {
   const { data } = await supabase
     .from('members')
-    .select('*')
+    .select(MEMBER_COLS)
     .eq('session_token', sessionToken)
     .maybeSingle()
 
   return data as Member | null
+}
+
+export async function leaveGroup(memberId: string): Promise<void> {
+  const { error } = await supabase
+    .from('members')
+    .delete()
+    .eq('id', memberId)
+
+  if (error) throw new Error(error.message)
 }

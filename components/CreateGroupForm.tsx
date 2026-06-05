@@ -23,7 +23,6 @@ export function CreateGroupForm({ eventId }: { eventId: string }) {
           name="name"
           placeholder="e.g. Tent Squad"
           required
-          className="bg-zinc-900 border-zinc-700"
         />
       </div>
       <Button type="submit" disabled={pending}>

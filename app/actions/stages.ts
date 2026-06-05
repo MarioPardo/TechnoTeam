@@ -6,6 +6,7 @@ import { Stage, Performance } from '@/lib/types'
 
 export async function createStage(eventId: string, formData: FormData) {
   const name = formData.get('name') as string
+  const color = (formData.get('color') as string) || null
 
   const { data: existing } = await supabase
     .from('stages')
@@ -19,8 +20,17 @@ export async function createStage(eventId: string, formData: FormData) {
 
   const { error } = await supabase
     .from('stages')
-    .insert({ event_id: eventId, name, order_index } as any)
+    .insert({ event_id: eventId, name, order_index, color } as any)
 
+  if (error) throw new Error(error.message)
+  revalidatePath(`/events/${eventId}/manage`)
+}
+
+export async function updateStageColor(stageId: string, eventId: string, color: string) {
+  const { error } = await supabase
+    .from('stages')
+    .update({ color } as any)
+    .eq('id', stageId)
   if (error) throw new Error(error.message)
   revalidatePath(`/events/${eventId}/manage`)
 }
@@ -28,6 +38,15 @@ export async function createStage(eventId: string, formData: FormData) {
 export async function deleteStage(stageId: string, eventId: string) {
   const { error } = await supabase.from('stages').delete().eq('id', stageId)
   if (error) throw new Error(error.message)
+  revalidatePath(`/events/${eventId}/manage`)
+}
+
+export async function reorderStages(eventId: string, orderedIds: string[]) {
+  await Promise.all(
+    orderedIds.map((id, index) =>
+      supabase.from('stages').update({ order_index: index } as any).eq('id', id),
+    ),
+  )
   revalidatePath(`/events/${eventId}/manage`)
 }
 

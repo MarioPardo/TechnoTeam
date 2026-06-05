@@ -3,6 +3,8 @@ import Link from 'next/link'
 import { getEvent } from '@/app/actions/events'
 import { getStagesWithPerformances } from '@/app/actions/stages'
 import { StageEditor } from '@/components/StageEditor'
+import { EventDetailsEditor } from '@/components/EventDetailsEditor'
+import { FestivalLogo } from '@/components/FestivalLogo'
 import { Event } from '@/lib/types'
 
 export default async function ManagePage({ params }: { params: Promise<{ id: string }> }) {
@@ -20,20 +22,37 @@ export default async function ManagePage({ params }: { params: Promise<{ id: str
   if (!event) notFound()
 
   return (
-    <div className="px-6 py-10 max-w-6xl mx-auto">
-      <div className="mb-2">
-        <Link href={`/events/${id}`} className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
-          ← Back to event
-        </Link>
-      </div>
-      <div className="flex items-center justify-between mb-8">
-        <div>
-          <h1 className="text-2xl font-bold tracking-tight">{event.name}</h1>
-          <p className="text-zinc-400 text-sm mt-0.5">Manage stages &amp; lineup</p>
+    <div className="py-10">
+      {/* Header — constrained width */}
+      <div className="max-w-2xl mx-auto px-6 mb-10">
+        <div className="mb-6">
+          <Link href={`/events/${id}`} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
+            ← Back to event
+          </Link>
+        </div>
+
+        <FestivalLogo
+          lightUrl={event.image_url}
+          darkUrl={event.image_url_dark}
+          alt={event.name}
+          className="w-20 h-20 mx-auto mb-4 rounded-2xl object-contain bg-muted"
+        />
+        <h1 className="text-4xl font-bold tracking-tight text-center">{event.name}</h1>
+        <p className="text-muted-foreground text-center mt-1.5">{event.location}</p>
+
+        <div className="mt-8">
+          <EventDetailsEditor event={event} />
         </div>
       </div>
 
-      <StageEditor eventId={id} initialStages={stages} />
+      {/* Lineup — full width */}
+      <div className="border-t border-border pt-8 px-4">
+        <div className="max-w-2xl mx-auto px-2 mb-6">
+          <h2 className="text-xl font-semibold tracking-tight">Lineup</h2>
+          <p className="text-sm text-muted-foreground mt-0.5">Manage stages and sets.</p>
+        </div>
+        <StageEditor eventId={id} initialStages={stages} timezone={event.timezone} />
+      </div>
     </div>
   )
 }

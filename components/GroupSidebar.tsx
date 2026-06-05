@@ -1,7 +1,6 @@
 'use client'
 
 import { Member } from '@/lib/types'
-import { Badge } from '@/components/ui/badge'
 
 const MEMBER_COLORS = [
   'bg-violet-500',
@@ -19,39 +18,46 @@ interface GroupSidebarProps {
   groupCode: string
   members: Member[]
   currentMemberId: string
+  onLeave: () => void
 }
 
-export function GroupSidebar({ groupName, groupCode, members, currentMemberId }: GroupSidebarProps) {
+export function GroupSidebar({ groupName, groupCode, members, currentMemberId, onLeave }: GroupSidebarProps) {
   function copyLink() {
     navigator.clipboard.writeText(window.location.href)
   }
 
   return (
-    <div className="w-48 shrink-0 flex flex-col gap-4">
+    <div className="flex flex-col gap-5">
       <div>
-        <div className="text-xs text-zinc-500 uppercase tracking-wider mb-1">Group</div>
-        <div className="font-semibold text-zinc-100 truncate">{groupName}</div>
+        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-1.5">Group</div>
+        <div className="font-semibold text-foreground truncate">{groupName}</div>
         <button
           onClick={copyLink}
-          className="mt-1 font-mono text-sm text-violet-400 hover:text-violet-300 transition-colors tracking-widest"
+          className="mt-1 font-mono text-sm text-primary hover:text-primary/80 transition-colors tracking-widest"
           title="Copy invite link"
         >
           {groupCode}
         </button>
+        <button
+          onClick={onLeave}
+          className="mt-3 w-full text-xs font-semibold text-destructive border border-destructive/40 rounded-lg py-1.5 hover:bg-destructive/10 transition-colors"
+        >
+          Leave crew
+        </button>
       </div>
 
       <div>
-        <div className="text-xs text-zinc-500 uppercase tracking-wider mb-2">Crew</div>
-        <div className="flex flex-col gap-2">
+        <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Crew</div>
+        <div className="flex flex-col gap-2.5">
           {members.map((member, i) => (
-            <div key={member.id} className="flex items-center gap-2">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white ${MEMBER_COLORS[i % MEMBER_COLORS.length]}`}>
+            <div key={member.id} className="flex items-center gap-2.5">
+              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${MEMBER_COLORS[i % MEMBER_COLORS.length]}`}>
                 {member.name[0].toUpperCase()}
               </span>
-              <span className="text-sm text-zinc-300 truncate">
+              <span className="text-sm text-foreground/80 truncate">
                 {member.name}
                 {member.id === currentMemberId && (
-                  <span className="text-zinc-600 ml-1">(you)</span>
+                  <span className="text-muted-foreground/60 ml-1 text-xs">(you)</span>
                 )}
               </span>
             </div>
@@ -60,7 +66,9 @@ export function GroupSidebar({ groupName, groupCode, members, currentMemberId }:
       </div>
 
       <div className="mt-auto">
-        <div className="text-xs text-zinc-600">Click a set to mark you&apos;ll be there. Tap again to remove.</div>
+        <div className="text-xs text-muted-foreground/60 leading-relaxed">
+          Click a set to mark you&apos;ll be there. Tap again to remove.
+        </div>
       </div>
     </div>
   )

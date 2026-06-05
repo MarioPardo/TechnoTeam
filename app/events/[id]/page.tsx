@@ -5,6 +5,7 @@ import { getStagesWithPerformances } from '@/app/actions/stages'
 import { buttonVariants } from '@/components/ui/button'
 import { CreateGroupForm } from '@/components/CreateGroupForm'
 import { JoinGroupForm } from '@/components/JoinGroupForm'
+import { FestivalLogo } from '@/components/FestivalLogo'
 import { Event } from '@/lib/types'
 
 export default async function EventPage({ params }: { params: Promise<{ id: string }> }) {
@@ -26,24 +27,30 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
   return (
     <div className="max-w-2xl mx-auto px-6 py-12">
       <div className="mb-2">
-        <Link href="/" className="text-sm text-zinc-500 hover:text-zinc-300 transition-colors">
+        <Link href="/" className="text-sm text-muted-foreground hover:text-foreground transition-colors">
           ← All events
         </Link>
       </div>
 
-      <div className="flex items-start justify-between gap-4 mb-8">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">{event.name}</h1>
-          <p className="text-zinc-400 mt-1">{event.location}</p>
+      <div className="mb-10">
+        <FestivalLogo
+          lightUrl={event.image_url}
+          darkUrl={event.image_url_dark}
+          alt={event.name}
+          className="w-24 h-24 mx-auto mb-4 rounded-2xl object-contain bg-muted"
+        />
+        <h1 className="text-4xl font-bold tracking-tight text-center">{event.name}</h1>
+        <p className="text-muted-foreground mt-1.5 text-center">{event.location}</p>
+        <div className="flex justify-center mt-4">
+          <Link href={`/events/${id}/manage`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
+            Edit festival
+          </Link>
         </div>
-        <Link href={`/events/${id}/manage`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
-          Edit lineup
-        </Link>
       </div>
 
       {!hasLineup && (
-        <div className="border border-dashed border-zinc-700 rounded-xl p-8 text-center mb-8">
-          <p className="text-zinc-400 mb-3">No lineup added yet.</p>
+        <div className="border-2 border-dashed border-border rounded-2xl p-8 text-center mb-10">
+          <p className="text-muted-foreground mb-4">No lineup added yet.</p>
           <Link href={`/events/${id}/manage`} className={buttonVariants({ variant: 'outline', size: 'sm' })}>
             Add stages &amp; lineup
           </Link>
@@ -51,15 +58,15 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       )}
 
       <div className="grid gap-8">
-        <section>
-          <h2 className="text-lg font-semibold mb-4">Create a group</h2>
+        <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+          <h2 className="text-lg font-semibold mb-1">Create a group</h2>
+          <p className="text-sm text-muted-foreground mb-5">Start a new planning group for your crew.</p>
           <CreateGroupForm eventId={id} />
         </section>
 
-        <div className="border-t border-zinc-800" />
-
-        <section>
-          <h2 className="text-lg font-semibold mb-4">Join an existing group</h2>
+        <section className="bg-card rounded-2xl border border-border p-6 shadow-sm">
+          <h2 className="text-lg font-semibold mb-1">Join an existing group</h2>
+          <p className="text-sm text-muted-foreground mb-5">Got a 6-letter code? Jump right in.</p>
           <JoinGroupForm />
         </section>
       </div>

@@ -23,7 +23,7 @@ export function JoinGroupForm() {
           name="code"
           placeholder="Enter 6-letter code"
           maxLength={6}
-          className="bg-zinc-900 border-zinc-700 uppercase tracking-widest font-mono"
+          className="uppercase tracking-widest font-mono"
         />
       </div>
       <Button type="submit" variant="outline">Join group</Button>

@@ -24,10 +24,12 @@ export async function createGroup(eventId: string, formData: FormData) {
   redirect(`/groups/${code}`)
 }
 
+const MEMBER_COLS = 'id, group_id, name, session_token, created_at'
+
 export async function getGroupByCode(code: string): Promise<(Group & { members: Member[] }) | null> {
   const { data, error } = await supabase
     .from('groups')
-    .select('*, members(*)')
+    .select(`*, members(${MEMBER_COLS})`)
     .eq('code', code)
     .single()
 
@@ -38,7 +40,7 @@ export async function getGroupByCode(code: string): Promise<(Group & { members: 
 export async function getGroupWithEvent(code: string) {
   const { data, error } = await supabase
     .from('groups')
-    .select('*, members(*), events(*)')
+    .select(`*, members(${MEMBER_COLS}), events(*)`)
     .eq('code', code)
     .single()
 
