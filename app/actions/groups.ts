@@ -47,3 +47,12 @@ export async function getGroupWithEvent(code: string) {
   if (error) return null
   return data as any
 }
+
+export async function getGroupsByCodes(codes: string[]) {
+  if (codes.length === 0) return []
+  const { data } = await supabase
+    .from('groups')
+    .select(`id, name, code, event_id, events(*)`)
+    .in('code', codes)
+  return (data ?? []) as any[]
+}

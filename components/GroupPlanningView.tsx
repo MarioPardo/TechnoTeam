@@ -24,6 +24,15 @@ interface GroupPlanningViewProps {
 }
 
 const SESSION_KEY = 'festival-session-token'
+const MY_GROUPS_KEY = 'festival-my-groups'
+
+function addMyGroup(code: string) {
+  const raw = localStorage.getItem(MY_GROUPS_KEY)
+  const codes: string[] = raw ? JSON.parse(raw) : []
+  if (!codes.includes(code)) {
+    localStorage.setItem(MY_GROUPS_KEY, JSON.stringify([...codes, code]))
+  }
+}
 const MIN_SIDEBAR_WIDTH = 160
 const MAX_SIDEBAR_WIDTH = 420
 const DEFAULT_SIDEBAR_WIDTH = 208
@@ -119,6 +128,7 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     try {
       const member = await signInOrJoin(group.id, joinName.trim(), joinPassword || undefined)
       localStorage.setItem(SESSION_KEY, member.session_token)
+      addMyGroup(group.code)
       setCurrentMember(member)
     } catch (err) {
       setJoinError(err instanceof Error ? err.message : 'Something went wrong')
@@ -132,6 +142,7 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     try {
       const member = await signInOrJoin(group.id, name)
       localStorage.setItem(SESSION_KEY, member.session_token)
+      addMyGroup(group.code)
       setCurrentMember(member)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'
@@ -149,6 +160,7 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
     try {
       const member = await signInOrJoin(group.id, quickSignIn.name, quickSignIn.password)
       localStorage.setItem(SESSION_KEY, member.session_token)
+      addMyGroup(group.code)
       setCurrentMember(member)
     } catch (err) {
       const msg = err instanceof Error ? err.message : 'Something went wrong'

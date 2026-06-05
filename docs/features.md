@@ -30,6 +30,14 @@
 - [x] Picks update live for all members in same group (no refresh needed)
 - [x] New members appear live in sidebar
 
+### Navigation & Pages
+- [x] Top nav with Home / Your Events / Crew Search tabs (active tab highlighted)
+- [x] Home page — landing with tagline + Available Events (all events)
+- [x] Your Events page — shows groups the user has joined, sourced from `festival-my-groups` localStorage key
+- [x] Join page (`/join`) — enter a crew code; accepts `?code=` query param for invite links
+- [x] Crew Search page — placeholder with upcoming search-by-festival/crew-name feature
+- [x] Group codes saved to localStorage on join so they appear in Your Events
+
 ### Deployment
 - [x] Vercel deployment ready (builds cleanly)
 - [x] Environment variables documented in docs/deployment.md and .env.local.example

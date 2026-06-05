@@ -5,10 +5,16 @@ import { getStagesWithPerformances } from '@/app/actions/stages'
 import { StageEditor } from '@/components/StageEditor'
 import { EventDetailsEditor } from '@/components/EventDetailsEditor'
 import { FestivalLogo } from '@/components/FestivalLogo'
+import { ManagePasswordGate } from '@/components/ManagePasswordGate'
+import { isManageUnlocked } from '@/app/actions/auth'
 import { Event } from '@/lib/types'
 
 export default async function ManagePage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = await params
+
+  const unlocked = await isManageUnlocked()
+  if (!unlocked) return <ManagePasswordGate />
+
   let event: Event | null = null
   let stages: any[] = []
 

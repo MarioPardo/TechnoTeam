@@ -4,7 +4,7 @@
 
 | Layer | Technology |
 |---|---|
-| Framework | Next.js 14 (App Router) |
+| Framework | Next.js 16 (App Router) |
 | Database + Realtime | Supabase (Postgres + subscriptions) |
 | Styling | Tailwind CSS + shadcn/ui |
 | Deployment | Vercel |
@@ -60,7 +60,10 @@ plans
 ## Routes
 
 ```
-/                     Home: list events + create CTA
+/                     Landing page: tagline + all available events
+/your-events          Client-rendered: groups the user has joined (via localStorage)
+/join                 Enter a crew code to navigate to a group; accepts ?code= for invite links
+/crew-search          Placeholder for future group discovery
 /events/new           Create event form
 /events/[id]          Event hub: view lineup + create/join group
 /events/[id]/manage   Lineup editor (stages + performances)
@@ -74,4 +77,6 @@ When any member toggles a plan, all clients in the same group receive the update
 
 ## Identity
 
-No accounts. Members join with a name. A `session_token` (UUID) is generated on join, stored in `localStorage`, and used to identify the member across page loads.
+No accounts. Members join with a name. A `session_token` (UUID) is generated on join, stored in `localStorage` under `festival-session-token`, and used to identify the member across page loads.
+
+When a member successfully joins any group, the group's 6-char code is appended to `festival-my-groups` (a JSON array in `localStorage`). The Your Events page reads this array to show the user's crews without requiring a login.
