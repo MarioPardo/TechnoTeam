@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { Link2Icon, CheckIcon, Settings2Icon } from 'lucide-react'
 import { Member } from '@/lib/types'
+import { MEMBER_COLOR_PALETTE } from '@/lib/member-colors'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -14,18 +15,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { updateMemberPassword } from '@/app/actions/members'
-
-const MEMBER_COLORS = [
-  'bg-violet-500',
-  'bg-pink-500',
-  'bg-amber-500',
-  'bg-emerald-500',
-  'bg-sky-500',
-  'bg-orange-500',
-  'bg-rose-500',
-  'bg-teal-500',
-]
+import { updateMemberPassword, updateMemberColor } from '@/app/actions/members'
 
 interface GroupSidebarProps {
   groupName: string
@@ -96,7 +86,53 @@ function InviteDialog({ groupCode }: { groupCode: string }) {
   )
 }
 
-function PasswordDialog({ member }: { member: Member }) {
+function ColorPicker({ member }: { member: Member }) {
+  const [color, setColor] = useState(member.color)
+  const [saving, setSaving] = useState<string | null>(null)
+  const [error, setError] = useState<string | null>(null)
+
+  async function handlePick(next: string) {
+    if (next === color || saving) return
+    const previous = color
+    setColor(next)
+    setSaving(next)
+    setError(null)
+    try {
+      await updateMemberColor(member.id, member.session_token, next)
+    } catch (err) {
+      setColor(previous)
+      setError(err instanceof Error ? err.message : 'Something went wrong')
+    } finally {
+      setSaving(null)
+    }
+  }
+
+  return (
+    <div>
+      <Label>Your color</Label>
+      <div className="flex flex-wrap gap-2 mt-1.5">
+        {MEMBER_COLOR_PALETTE.map((swatch) => (
+          <button
+            key={swatch}
+            type="button"
+            onClick={() => handlePick(swatch)}
+            aria-label={`Use color ${swatch}`}
+            disabled={saving !== null}
+            style={{ backgroundColor: swatch }}
+            className={`relative w-7 h-7 rounded-full flex items-center justify-center transition-transform hover:scale-110 disabled:pointer-events-none ${
+              color === swatch ? 'ring-2 ring-offset-2 ring-offset-popover ring-foreground' : ''
+            }`}
+          >
+            {color === swatch && <CheckIcon className="size-3.5 text-white" />}
+          </button>
+        ))}
+      </div>
+      {error && <p className="text-sm text-destructive mt-2">{error}</p>}
+    </div>
+  )
+}
+
+function UserSettingsDialog({ member }: { member: Member }) {
   const [open, setOpen] = useState(false)
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
@@ -141,14 +177,16 @@ function PasswordDialog({ member }: { member: Member }) {
       </DialogTrigger>
       <DialogContent>
         <DialogHeader>
-          <DialogTitle>Password settings</DialogTitle>
+          <DialogTitle>User settings</DialogTitle>
           <DialogDescription>
-            Add, change, or remove the password for <span className="font-medium text-foreground">{member.name}</span>.
+            Update <span className="font-medium text-foreground">{member.name}</span>&apos;s color and password.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="flex flex-col gap-3 mt-1">
-          <div>
+        <div className="flex flex-col gap-4 mt-1">
+          <ColorPicker member={member} />
+
+          <div className="flex flex-col gap-3 pt-3 border-t border-border">
             <Label htmlFor="current-pw">Current password</Label>
             <Input
               id="current-pw"
@@ -156,10 +194,8 @@ function PasswordDialog({ member }: { member: Member }) {
               placeholder="Leave blank if you haven't set one"
               value={currentPw}
               onChange={(e) => { setCurrentPw(e.target.value); setError(null) }}
-              className="mt-1.5"
+              className="-mt-1.5"
             />
-          </div>
-          <div>
             <Label htmlFor="new-pw">New password</Label>
             <Input
               id="new-pw"
@@ -168,13 +204,13 @@ function PasswordDialog({ member }: { member: Member }) {
               value={newPw}
               onChange={(e) => { setNewPw(e.target.value); setError(null) }}
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
-              className="mt-1.5"
+              className="-mt-1.5"
             />
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           {success && <p className="text-sm text-emerald-600 dark:text-emerald-400">Password updated!</p>}
           <Button onClick={handleSave} disabled={saving} className="w-full">
-            {saving ? 'Saving…' : 'Save'}
+            {saving ? 'Saving…' : 'Save settings'}
           </Button>
         </div>
       </DialogContent>
@@ -200,9 +236,12 @@ export function GroupSidebar({ groupName, groupCode, members, currentMember, onL
       <div>
         <div className="text-[11px] font-semibold text-muted-foreground uppercase tracking-wider mb-2.5">Crew</div>
         <div className="flex flex-col gap-2.5 max-h-48 overflow-y-auto">
-          {members.map((member, i) => (
+          {members.map((member) => (
             <div key={member.id} className="flex items-center gap-2.5">
-              <span className={`w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0 ${MEMBER_COLORS[i % MEMBER_COLORS.length]}`}>
+              <span
+                style={{ backgroundColor: member.color }}
+                className="w-6 h-6 rounded-full flex items-center justify-center text-[10px] font-bold text-white shrink-0"
+              >
                 {member.name[0].toUpperCase()}
               </span>
               <span className="text-sm text-foreground/80 truncate flex-1 min-w-0">
@@ -212,7 +251,7 @@ export function GroupSidebar({ groupName, groupCode, members, currentMember, onL
                 )}
               </span>
               {member.id === currentMember.id && (
-                <PasswordDialog member={currentMember} />
+                <UserSettingsDialog member={currentMember} />
               )}
             </div>
           ))}

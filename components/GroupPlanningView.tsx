@@ -120,6 +120,16 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
           }
         }
       )
+      .on(
+        'postgres_changes',
+        { event: 'UPDATE', schema: 'public', table: 'members' },
+        (payload) => {
+          const updated = payload.new as Member
+          if (updated.group_id !== group.id) return
+          setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
+          setCurrentMember((prev) => (prev?.id === updated.id ? updated : prev))
+        }
+      )
       .subscribe()
 
     return () => {
@@ -444,6 +454,8 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
             stages={stages}
             plans={plans}
             currentMemberId={currentMember.id}
+            memberName={currentMember.name}
+            logoUrl={group.events.image_url_dark ?? group.events.image_url}
             timezone={(group as any).events?.timezone ?? 'UTC'}
             onToggle={handleToggle}
           />

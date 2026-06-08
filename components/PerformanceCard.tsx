@@ -12,22 +12,12 @@ interface PerformanceCardProps {
   onToggle: () => void
 }
 
-const MEMBER_COLORS = [
-  'bg-violet-500',
-  'bg-pink-500',
-  'bg-amber-500',
-  'bg-emerald-500',
-  'bg-sky-500',
-  'bg-orange-500',
-  'bg-rose-500',
-  'bg-teal-500',
-]
-
-function MemberDot({ name, colorClass }: { name: string; colorClass: string }) {
+function MemberDot({ name, color }: { name: string; color: string }) {
   return (
     <span
       title={name}
-      className={`inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white ${colorClass} ring-1 ring-background`}
+      style={{ backgroundColor: color }}
+      className="inline-flex items-center justify-center w-5 h-5 rounded-full text-[9px] font-bold text-white ring-1 ring-background"
     >
       {name[0].toUpperCase()}
     </span>
@@ -105,10 +95,11 @@ export function PerformanceCard({ performance, plans, isMine, stageColor, timezo
               Interested
             </p>
             <div className="flex flex-col gap-1.5">
-              {plans.map((plan, i) => (
+              {plans.map((plan) => (
                 <div key={plan.id} className="flex items-center gap-2 whitespace-nowrap">
                   <span
-                    className={`w-4 h-4 rounded-full text-[8px] font-bold text-white inline-flex items-center justify-center shrink-0 ${MEMBER_COLORS[i % MEMBER_COLORS.length]}`}
+                    style={{ backgroundColor: plan.members.color }}
+                    className="w-4 h-4 rounded-full text-[8px] font-bold text-white inline-flex items-center justify-center shrink-0"
                   >
                     {plan.members.name[0].toUpperCase()}
                   </span>
@@ -137,11 +128,11 @@ export function PerformanceCard({ performance, plans, isMine, stageColor, timezo
         )}
         {plans.length > 0 && (
           <div className="flex flex-wrap gap-0.5 mt-1">
-            {plans.slice(0, 6).map((plan, i) => (
+            {plans.slice(0, 6).map((plan) => (
               <MemberDot
                 key={plan.id}
                 name={plan.members.name}
-                colorClass={MEMBER_COLORS[i % MEMBER_COLORS.length]}
+                color={plan.members.color}
               />
             ))}
             {plans.length > 6 && (

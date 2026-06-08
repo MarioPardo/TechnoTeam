@@ -12,6 +12,7 @@ import { cn } from '@/lib/utils'
 import { getGuestId, getGuestPicks, toggleGuestPick } from '@/lib/guest-picks'
 import { getFontStyle, formatEventDates } from '@/lib/festival-font'
 import { Event, Stage, Performance, Member, Plan } from '@/lib/types'
+import { MEMBER_COLOR_PALETTE } from '@/lib/member-colors'
 
 type StageWithPerfs = Stage & { performances: Performance[] }
 
@@ -29,6 +30,7 @@ const GUEST_MEMBER: Member = {
   group_id: '',
   name: 'You',
   session_token: '',
+  color: MEMBER_COLOR_PALETTE[0],
   created_at: '',
 }
 
@@ -240,6 +242,7 @@ export function EventView({ event, stages }: EventViewProps) {
               stages={stages}
               plans={buildGuestPlans(guestId, guestPicks)}
               currentMemberId={guestId}
+              logoUrl={event.image_url_dark ?? event.image_url}
               timezone={event.timezone}
               guestMode
               onToggle={(perfId) => setGuestPicks(toggleGuestPick(event.id, perfId))}

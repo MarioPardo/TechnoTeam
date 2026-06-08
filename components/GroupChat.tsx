@@ -5,19 +5,9 @@ import { supabase } from '@/lib/supabase'
 import { sendMessage, getMessages } from '@/app/actions/messages'
 import { Message, Member } from '@/lib/types'
 import { ChevronDown, ChevronUp, Send } from 'lucide-react'
+import { MEMBER_COLOR_PALETTE } from '@/lib/member-colors'
 
 type MessageWithMember = Message & { members: { id: string; name: string } }
-
-const MEMBER_COLORS = [
-  'bg-violet-500',
-  'bg-pink-500',
-  'bg-amber-500',
-  'bg-emerald-500',
-  'bg-sky-500',
-  'bg-orange-500',
-  'bg-rose-500',
-  'bg-teal-500',
-]
 
 interface GroupChatProps {
   groupId: string
@@ -68,8 +58,7 @@ export function GroupChat({ groupId, currentMember, members, collapsed, onToggle
   }, [messages, collapsed])
 
   const getMemberColor = (memberId: string) => {
-    const idx = members.findIndex((m) => m.id === memberId)
-    return MEMBER_COLORS[idx >= 0 ? idx % MEMBER_COLORS.length : 0]
+    return members.find((m) => m.id === memberId)?.color ?? MEMBER_COLOR_PALETTE[0]
   }
 
   const handleSend = async () => {
@@ -108,7 +97,10 @@ export function GroupChat({ groupId, currentMember, members, collapsed, onToggle
             {messages.map((msg) => (
               <div key={msg.id} className="flex flex-col gap-0.5">
                 <div className="flex items-center gap-1.5">
-                  <span className={`w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0 ${getMemberColor(msg.member_id)}`}>
+                  <span
+                    style={{ backgroundColor: getMemberColor(msg.member_id) }}
+                    className="w-4 h-4 rounded-full flex items-center justify-center text-[8px] font-bold text-white shrink-0"
+                  >
                     {msg.members.name[0].toUpperCase()}
                   </span>
                   <span className="text-[11px] font-semibold text-muted-foreground">

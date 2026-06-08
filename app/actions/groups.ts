@@ -24,7 +24,7 @@ export async function createGroup(eventId: string, formData: FormData) {
   redirect(`/groups/${code}`)
 }
 
-const MEMBER_COLS = 'id, group_id, name, session_token, created_at'
+const MEMBER_COLS = 'id, group_id, name, session_token, color, created_at'
 
 export async function getGroupByCode(code: string): Promise<(Group & { members: Member[] }) | null> {
   const { data, error } = await supabase

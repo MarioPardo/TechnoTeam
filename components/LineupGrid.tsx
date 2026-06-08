@@ -3,6 +3,10 @@
 import React, { useEffect, useMemo, useState } from 'react'
 import { Performance, Stage, Member, Plan } from '@/lib/types'
 import { PerformanceCard } from './PerformanceCard'
+import { ScheduleExportDialog } from './ScheduleExportDialog'
+import { ExportEntry } from '@/lib/schedule-export'
+import { Button } from '@/components/ui/button'
+import { ImageDownIcon } from 'lucide-react'
 
 type StageWithPerfs = Stage & { performances: Performance[] }
 
@@ -10,6 +14,8 @@ interface LineupGridProps {
   stages: StageWithPerfs[]
   plans: (Plan & { members: Member })[]
   currentMemberId: string
+  memberName?: string
+  logoUrl?: string | null
   timezone: string
   guestMode?: boolean
   onToggle: (performanceId: string) => void
@@ -40,26 +46,28 @@ function buildTimeMarkers(minSlot: number, maxSlot: number, tz: string): TimeMar
   return markers
 }
 
-export function LineupGrid({ stages, plans, currentMemberId, timezone, guestMode = false, onToggle }: LineupGridProps) {
+export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl, timezone, guestMode = false, onToggle }: LineupGridProps) {
   const allPerfs = stages.flatMap((s) => s.performances)
 
   const days = useMemo(() => {
-    const dayMap = new Map<string, string>()
+    const dayMap = new Map<string, { label: string; shortLabel: string }>()
     for (const perf of allPerfs) {
       const key = toDateKey(perf.start_time, timezone)
       if (!dayMap.has(key)) {
-        dayMap.set(
-          key,
-          new Date(perf.start_time).toLocaleDateString('en-GB', { timeZone: timezone, weekday: 'long', day: 'numeric', month: 'long' }),
-        )
+        const date = new Date(perf.start_time)
+        dayMap.set(key, {
+          label: date.toLocaleDateString('en-GB', { timeZone: timezone, weekday: 'long', day: 'numeric', month: 'long' }),
+          shortLabel: date.toLocaleDateString('en-GB', { timeZone: timezone, day: 'numeric', month: 'long' }),
+        })
       }
     }
     return Array.from(dayMap.entries())
       .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, label]) => ({ key, label }))
+      .map(([key, { label, shortLabel }]) => ({ key, label, shortLabel }))
   }, [allPerfs, timezone])
 
   const [viewMode, setViewMode] = useState<'group' | 'mine'>('group')
+  const [exportOpen, setExportOpen] = useState(false)
 
   const [selectedDay, setSelectedDay] = useState<string>('')
   const activeDay = days.find((d) => d.key === selectedDay)?.key ?? days[0]?.key ?? ''
@@ -120,6 +128,18 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, guestMode
     [orderedStages, activeDay, timezone, viewMode, plans, currentMemberId],
   )
 
+  const exportEntries = useMemo<ExportEntry[]>(
+    () =>
+      filteredStages.flatMap((stage) =>
+        stage.performances.map((perf) => ({
+          performance: perf,
+          stageName: stage.name,
+          stageColor: stage.color,
+        })),
+      ),
+    [filteredStages],
+  )
+
   const { minTime, totalHeight, timeMarkers } = useMemo(() => {
     const dayPerfs = filteredStages.flatMap((s) => s.performances)
     if (dayPerfs.length === 0) return { minTime: 0, totalHeight: 0, timeMarkers: [] }
@@ -174,20 +194,29 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, guestMode
 
       {/* Day tabs */}
       {days.length > 0 && (
-        <div className="flex gap-2 flex-wrap mb-4">
-          {days.map((day) => (
-            <button
-              key={day.key}
-              onClick={() => setSelectedDay(day.key)}
-              className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors whitespace-nowrap ${
-                activeDay === day.key
-                  ? 'bg-primary text-primary-foreground'
-                  : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
-              }`}
-            >
-              {day.label}
-            </button>
-          ))}
+        <div className="flex items-center justify-between gap-2 flex-wrap mb-4">
+          <div className="flex gap-2 flex-wrap">
+            {days.map((day) => (
+              <button
+                key={day.key}
+                onClick={() => setSelectedDay(day.key)}
+                className={`px-4 py-1.5 text-sm font-medium rounded-full transition-colors whitespace-nowrap ${
+                  activeDay === day.key
+                    ? 'bg-primary text-primary-foreground'
+                    : 'bg-muted text-muted-foreground hover:bg-muted/80 hover:text-foreground'
+                }`}
+              >
+                {day.label}
+              </button>
+            ))}
+          </div>
+
+          {viewMode === 'mine' && dayPerfs.length > 0 && (
+            <Button variant="outline" size="sm" className="gap-1.5" onClick={() => setExportOpen(true)}>
+              <ImageDownIcon className="size-3.5" />
+              Export as picture
+            </Button>
+          )}
         </div>
       )}
 
@@ -289,6 +318,18 @@ export function LineupGrid({ stages, plans, currentMemberId, timezone, guestMode
           </div>
         </div>
       )}
+
+      <ScheduleExportDialog
+        open={exportOpen}
+        onOpenChange={setExportOpen}
+        memberName={guestMode ? undefined : memberName}
+        logoUrl={logoUrl}
+        dayKey={activeDay}
+        dayLabel={days.find((d) => d.key === activeDay)?.label ?? ''}
+        dayShortLabel={days.find((d) => d.key === activeDay)?.shortLabel ?? ''}
+        entries={exportEntries}
+        timezone={timezone}
+      />
     </div>
   )
 }

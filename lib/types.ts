@@ -83,6 +83,7 @@ export type Member = {
   group_id: string
   name: string
   session_token: string
+  color: string
   created_at: string
 }
 

@@ -68,6 +68,7 @@ create table if not exists members (
   group_id      uuid not null references groups(id) on delete cascade,
   name          text not null,
   password_hash text,
+  color         text,
   session_token uuid not null unique,
   created_at    timestamptz not null default now(),
   -- Names are unique per group (case-insensitive)
@@ -76,6 +77,7 @@ create table if not exists members (
 
 -- Migration for existing databases:
 -- alter table members add column if not exists password_hash text;
+-- alter table members add column if not exists color text;
 -- alter table members add constraint members_group_name_unique unique (group_id, name);
 
 -- Plans (which performances each member wants to attend)
