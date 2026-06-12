@@ -1,48 +1,40 @@
 # TechnoTeam
 
-Coordinate your festival crew. Plan your schedule together, in real time.
+**Plan your festival with your crew — in real time.**
+
+[**techno-team.vercel.app**](https://techno-team.vercel.app)
+
+Going to a multi-stage festival is chaotic. Everyone wants to catch different sets, people get separated, and coordinating who's going where is a mess of texts and screenshots. TechnoTeam fixes that.
+
+Create or join a crew, browse the full lineup grid, and tap the sets you want to see. Your picks show up live on your crewmates' screens — colored dots on each performance card — so everyone knows at a glance where the group is splitting up or converging. No account needed: just share a 6-character code and you're in.
+
+**What you can do:**
+
+- Browse any festival's lineup across all stages in a side-by-side grid
+- Create a crew and invite friends via a shareable code
+- Tap performances to mark your picks — they sync live for your whole crew
+- See colored avatars on each card showing which crewmates are going
+- Export your personal schedule as an image
+- Use it as a guest (no sign-up) with picks saved locally for a year
+
+---
 
 ## Stack
 
-- **Next.js 16** (App Router) — framework
-- **Supabase** — Postgres database + real-time subscriptions
-- **Tailwind CSS v4 + shadcn/ui** — styling and components
+- **Next.js 16** (App Router)
+- **Supabase** — Postgres + real-time subscriptions
+- **Tailwind CSS v4 + shadcn/ui**
 - **Vercel** — deployment
 
-## Getting Started
+## Repo structure
 
-### 1. Supabase setup
-
-1. Create a project at [supabase.com](https://supabase.com)
-2. Run `supabase/schema.sql` in the SQL Editor
-3. Enable real-time for the `plans` table (Table Editor → Replication)
-4. Copy your project URL and anon key from Project Settings → API
-
-### 2. Local development
-
-```bash
-cp .env.local.example .env.local
-# fill in NEXT_PUBLIC_SUPABASE_URL, NEXT_PUBLIC_SUPABASE_ANON_KEY, and MANAGE_PASSWORD
-
-npm install
-npm run dev
+```
+app/          Next.js routes and pages
+components/   Shared UI components
+lib/          Utilities and Supabase client
+supabase/     Database schema
+docs/         Architecture, features, and deployment guides
+planning/     Design decisions and backlog
 ```
 
-Open [http://localhost:3000](http://localhost:3000).
-
-### 3. Deploy to Vercel
-
-1. Push to GitHub
-2. Import in [vercel.com](https://vercel.com)
-3. Add the two environment variables in the Vercel dashboard
-4. Deploy — no extra config needed
-
-See `docs/deployment.md` for full details.
-
-## Docs
-
-- `docs/architecture.md` — stack, data model, routes, identity model
-- `docs/features.md` — feature checklist (done / in progress / planned)
-- `docs/deployment.md` — Supabase + Vercel setup guide
-- `planning/decisions.md` — key design decisions and rationale
-- `planning/backlog.md` — future ideas
+See the `docs/` folder for full documentation.
