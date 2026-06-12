@@ -51,6 +51,12 @@ function buildTimeMarkers(minSlot: number, maxSlot: number, tz: string): TimeMar
 export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl, timezone, sunTimes, guestMode = false, onToggle }: LineupGridProps) {
   const allPerfs = stages.flatMap((s) => s.performances)
 
+  const tzAbbr = useMemo(() => {
+    return new Intl.DateTimeFormat('en-US', { timeZone: timezone, timeZoneName: 'short' })
+      .formatToParts(new Date())
+      .find((p) => p.type === 'timeZoneName')?.value ?? timezone
+  }, [timezone])
+
   const days = useMemo(() => {
     const dayMap = new Map<string, { label: string; shortLabel: string }>()
     for (const perf of allPerfs) {
@@ -248,7 +254,9 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
         <div>
           {/* Stage name headers */}
           <div className="flex min-w-full sticky top-0 z-20 bg-background border-b border-border">
-            <div className="w-28 shrink-0" />
+            <div className="w-28 shrink-0 flex items-end justify-center pb-2">
+              <span className="text-[10px] text-muted-foreground/60 font-medium">{tzAbbr}</span>
+            </div>
             {orderedStages.map((stage) => (
               <div
                 key={stage.id}
@@ -268,7 +276,7 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
                     style={{ backgroundColor: stage.color }}
                   />
                 )}
-                <span className="truncate">{stage.name}</span>
+                <span className="text-center">{stage.name}</span>
               </div>
             ))}
           </div>

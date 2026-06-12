@@ -20,7 +20,7 @@ import { Label } from '@/components/ui/label'
 
 type StageWithPerfs = Stage & { performances: Performance[] }
 type PlanWithMember = Plan & { members: Member }
-type GroupWithEvent = Group & { members: Member[]; events: { id: string; name: string; image_url: string | null; image_url_dark: string | null; timezone: string; date_start: string; date_end: string; font: string | null } }
+type GroupWithEvent = Group & { members: Member[]; events: { id: string; name: string; image_url: string | null; image_url_dark: string | null; timezone: string; date_start: string; date_end: string; font: string | null; location: string } }
 
 interface GroupPlanningViewProps {
   group: GroupWithEvent
@@ -432,23 +432,22 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <div className="shrink-0 bg-background px-4 pt-3 pb-3 border-b border-border flex items-center justify-center gap-3">
+        <div className="shrink-0 bg-background px-4 pt-3 pb-3 border-b border-border flex items-center justify-center gap-4">
           <FestivalLogo
             lightUrl={group.events.image_url}
             darkUrl={group.events.image_url_dark}
             alt={group.events.name}
             className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-muted shrink-0"
           />
-          <div className="min-w-0 text-left">
-            <h2
-              className="text-2xl sm:text-3xl font-bold tracking-tight text-foreground truncate leading-tight"
-              style={getFontStyle(group.events.font)}
-            >
-              {group.events.name}
-            </h2>
-            <p className="text-xs text-muted-foreground/70">
-              {formatEventDates(group.events.date_start, group.events.date_end)}
-            </p>
+          <h2
+            className="text-4xl sm:text-5xl font-bold tracking-tight text-foreground leading-tight shrink-0"
+            style={getFontStyle(group.events.font)}
+          >
+            {group.events.name}
+          </h2>
+          <div className="flex flex-col justify-center shrink-0">
+            <span className="text-sm text-muted-foreground leading-tight">{group.events.location}</span>
+            <span className="text-xs text-muted-foreground/70 leading-tight">{formatEventDates(group.events.date_start, group.events.date_end)}</span>
           </div>
         </div>
         <div className="flex-1 overflow-auto px-2 py-4">

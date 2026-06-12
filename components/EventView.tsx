@@ -208,34 +208,29 @@ export function EventView({ event, stages, sunTimes }: EventViewProps) {
 
       {/* Main content */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
-        <div className="shrink-0 bg-background px-4 sm:px-6 pt-3 pb-3 border-b border-border flex items-center justify-center gap-3">
+        <div className="shrink-0 bg-background px-4 sm:px-6 pt-3 pb-3 border-b border-border flex items-center justify-center gap-4">
           {event.image_url && (
-            <div className="shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={event.image_url}
-                alt={event.name}
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-muted dark:hidden"
-              />
-            </div>
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={event.image_url}
+              alt={event.name}
+              className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-muted dark:hidden shrink-0"
+            />
           )}
           {event.image_url_dark && (
-            <div className="shrink-0">
-              {/* eslint-disable-next-line @next/next/no-img-element */}
-              <img
-                src={event.image_url_dark}
-                alt={event.name}
-                className="w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-muted hidden dark:block"
-              />
-            </div>
+            // eslint-disable-next-line @next/next/no-img-element
+            <img
+              src={event.image_url_dark}
+              alt={event.name}
+              className={cn('w-10 h-10 sm:w-12 sm:h-12 rounded-xl object-contain bg-muted shrink-0', event.image_url ? 'hidden dark:block' : '')}
+            />
           )}
-          <div className="min-w-0 text-left">
-            <h2 className="text-2xl sm:text-3xl font-bold tracking-tight truncate leading-tight" style={getFontStyle(event.font)}>
-              {event.name}
-            </h2>
-            <p className="text-xs text-muted-foreground/70 mt-0.5 truncate">
-              {event.location} · {formatEventDates(event.date_start, event.date_end)}
-            </p>
+          <h2 className="text-4xl sm:text-5xl font-bold tracking-tight leading-tight shrink-0" style={getFontStyle(event.font)}>
+            {event.name}
+          </h2>
+          <div className="flex flex-col justify-center shrink-0">
+            <span className="text-sm text-muted-foreground leading-tight">{event.location}</span>
+            <span className="text-xs text-muted-foreground/70 leading-tight">{formatEventDates(event.date_start, event.date_end)}</span>
           </div>
         </div>
         <div className="flex-1 overflow-auto px-2 sm:px-4 py-4">

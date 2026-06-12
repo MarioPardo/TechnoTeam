@@ -313,7 +313,7 @@ export function EventDetailsEditor({ event }: { event: Event }) {
           ))}
         </select>
         <p className="text-xs text-muted-foreground/60">
-          Auto-detected when you pick a location. Affects schedule display and sunrise/sunset times.
+          Auto-detected when you pick a location.
         </p>
       </div>
 
