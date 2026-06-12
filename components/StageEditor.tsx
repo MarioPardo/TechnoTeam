@@ -2,7 +2,7 @@
 
 import React, { useMemo, useState, useTransition } from 'react'
 import { createStage, deleteStage, updateStageColor, reorderStages } from '@/app/actions/stages'
-import { createPerformance, deletePerformance } from '@/app/actions/performances'
+import { createPerformance, updatePerformance, deletePerformance } from '@/app/actions/performances'
 import { importLineupJSON, type ImportResult } from '@/app/actions/importLineup'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
@@ -25,16 +25,23 @@ function fmtTime(iso: string, tz: string) {
   return new Date(iso).toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
 }
 
+// Converts a UTC ISO string to "YYYY-MM-DDTHH:MM" in the given timezone for datetime-local inputs
+function toLocalInput(iso: string, tz: string): string {
+  return new Date(iso).toLocaleString('sv-SE', { timeZone: tz }).replace(' ', 'T').slice(0, 16)
+}
+
 function EditorPerfCard({
   perf,
   eventId,
   stageColor,
   timezone,
+  onEdit,
 }: {
   perf: Performance
   eventId: string
   stageColor: string | null
   timezone: string
+  onEdit: (perf: Performance) => void
 }) {
   const [, startDelete] = useTransition()
   const durationMin = Math.round(
@@ -53,7 +60,7 @@ function EditorPerfCard({
       }`}
       style={cardStyle}
     >
-      <div className={`font-semibold text-foreground truncate pr-5 ${compact ? 'text-xs' : 'text-sm'}`}>
+      <div className={`font-semibold text-foreground truncate pr-10 ${compact ? 'text-xs' : 'text-sm'}`}>
         {perf.artist}
       </div>
       {!compact && (
@@ -62,8 +69,17 @@ function EditorPerfCard({
         </div>
       )}
       <button
+        onClick={() => onEdit(perf)}
+        className="absolute top-0.5 right-6 w-5 h-5 rounded flex items-center justify-center text-muted-foreground/40 hover:text-primary hover:bg-muted transition-colors"
+        title="Edit"
+      >
+        <svg xmlns="http://www.w3.org/2000/svg" width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+        </svg>
+      </button>
+      <button
         onClick={() => startDelete(async () => { await deletePerformance(perf.id, eventId) })}
-        className="absolute top-0.5 right-0.5 w-5 h-5 rounded flex items-center justify-center text-muted-foreground/60 hover:text-destructive hover:bg-muted text-sm leading-none"
+        className="absolute top-0.5 right-0.5 w-5 h-5 rounded flex items-center justify-center text-muted-foreground/60 hover:text-destructive hover:bg-muted text-sm leading-none transition-colors"
         title="Delete"
       >
         ×
@@ -118,6 +134,63 @@ function AddPerformanceForm({
         <div className="col-span-2 flex justify-end gap-2 mt-1">
           <Button type="button" variant="ghost" size="sm" onClick={onDone}>Cancel</Button>
           <Button type="submit" size="sm" disabled={pending}>{pending ? 'Adding…' : 'Add set'}</Button>
+        </div>
+      </form>
+    </div>
+  )
+}
+
+function EditPerformanceForm({
+  perf,
+  eventId,
+  timezone,
+  onDone,
+}: {
+  perf: Performance
+  eventId: string
+  timezone: string
+  onDone: () => void
+}) {
+  const [pending, startTransition] = useTransition()
+
+  function handleSubmit(formData: FormData) {
+    startTransition(async () => {
+      await updatePerformance(perf.id, eventId, {
+        artist: formData.get('artist') as string,
+        start_time: formData.get('start_time') as string,
+        end_time: formData.get('end_time') as string,
+        description: (formData.get('description') as string) || null,
+      })
+      onDone()
+    })
+  }
+
+  return (
+    <div className="mt-4 bg-card border border-border rounded-2xl p-5 shadow-sm">
+      <div className="flex items-center justify-between mb-4">
+        <span className="text-sm font-semibold text-foreground">Edit set</span>
+        <button onClick={onDone} className="text-muted-foreground hover:text-foreground text-xs transition-colors">Cancel</button>
+      </div>
+      <form action={handleSubmit} className="grid grid-cols-2 gap-3">
+        <div className="col-span-2">
+          <Label className="text-xs text-muted-foreground">Artist</Label>
+          <Input name="artist" defaultValue={perf.artist} required autoFocus className="mt-1 h-9 text-sm" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">Start time</Label>
+          <Input name="start_time" type="datetime-local" defaultValue={toLocalInput(perf.start_time, timezone)} required className="mt-1 h-9 text-sm" />
+        </div>
+        <div>
+          <Label className="text-xs text-muted-foreground">End time</Label>
+          <Input name="end_time" type="datetime-local" defaultValue={toLocalInput(perf.end_time, timezone)} required className="mt-1 h-9 text-sm" />
+        </div>
+        <div className="col-span-2">
+          <Label className="text-xs text-muted-foreground">Note <span className="text-muted-foreground/50">(optional)</span></Label>
+          <Input name="description" defaultValue={perf.description ?? ''} placeholder="e.g. Closing set" className="mt-1 h-9 text-sm" />
+        </div>
+        <div className="col-span-2 flex justify-end gap-2 mt-1">
+          <Button type="button" variant="ghost" size="sm" onClick={onDone}>Cancel</Button>
+          <Button type="submit" size="sm" disabled={pending}>{pending ? 'Saving…' : 'Save changes'}</Button>
         </div>
       </form>
     </div>
@@ -212,6 +285,7 @@ export function StageEditor({
 }) {
   const [selectedDay, setSelectedDay] = useState('')
   const [addingToStage, setAddingToStage] = useState<{ id: string; name: string } | null>(null)
+  const [editingPerf, setEditingPerf] = useState<Performance | null>(null)
   const [showAddStage, setShowAddStage] = useState(false)
   const [pending, startTransition] = useTransition()
   const [, startReorder] = useTransition()
@@ -483,7 +557,7 @@ export function StageEditor({
                         className="absolute left-1 right-1 z-20"
                         style={{ top, height }}
                       >
-                        <EditorPerfCard perf={perf} eventId={eventId} stageColor={stage.color} timezone={timezone} />
+                        <EditorPerfCard perf={perf} eventId={eventId} stageColor={stage.color} timezone={timezone} onEdit={setEditingPerf} />
                       </div>
                     )
                   })}
@@ -520,6 +594,16 @@ export function StageEditor({
           stageName={addingToStage.name}
           eventId={eventId}
           onDone={() => setAddingToStage(null)}
+        />
+      )}
+
+      {/* Edit-set form panel */}
+      {editingPerf && (
+        <EditPerformanceForm
+          perf={editingPerf}
+          eventId={eventId}
+          timezone={timezone}
+          onDone={() => setEditingPerf(null)}
         />
       )}
 

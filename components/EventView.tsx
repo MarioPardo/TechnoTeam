@@ -13,12 +13,14 @@ import { getGuestId, getGuestPicks, toggleGuestPick } from '@/lib/guest-picks'
 import { getFontStyle, formatEventDates } from '@/lib/festival-font'
 import { Event, Stage, Performance, Member, Plan } from '@/lib/types'
 import { MEMBER_COLOR_PALETTE } from '@/lib/member-colors'
+import { SunDay } from '@/lib/sun-times'
 
 type StageWithPerfs = Stage & { performances: Performance[] }
 
 interface EventViewProps {
   event: Event
   stages: StageWithPerfs[]
+  sunTimes?: SunDay[]
 }
 
 const MIN_SIDEBAR_WIDTH = 180
@@ -46,7 +48,7 @@ function buildGuestPlans(guestId: string, picks: string[]): (Plan & { members: M
   }))
 }
 
-export function EventView({ event, stages }: EventViewProps) {
+export function EventView({ event, stages, sunTimes }: EventViewProps) {
   const [sidebarWidth, setSidebarWidth] = useState(DEFAULT_SIDEBAR_WIDTH)
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [isMobile, setIsMobile] = useState(false)
@@ -244,6 +246,7 @@ export function EventView({ event, stages }: EventViewProps) {
               currentMemberId={guestId}
               logoUrl={event.image_url_dark ?? event.image_url}
               timezone={event.timezone}
+              sunTimes={sunTimes}
               guestMode
               onToggle={(perfId) => setGuestPicks(toggleGuestPick(event.id, perfId))}
             />

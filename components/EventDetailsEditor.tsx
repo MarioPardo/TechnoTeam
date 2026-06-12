@@ -12,6 +12,34 @@ import { Event } from '@/lib/types'
 
 type Link = { label: string; url: string }
 
+type GeoResult = {
+  id: number
+  name: string
+  country: string
+  admin1?: string
+  timezone: string
+}
+
+const TIMEZONES = [
+  'UTC',
+  'Europe/London', 'Europe/Lisbon',
+  'Europe/Paris', 'Europe/Berlin', 'Europe/Madrid', 'Europe/Rome',
+  'Europe/Amsterdam', 'Europe/Brussels', 'Europe/Vienna', 'Europe/Zurich',
+  'Europe/Stockholm', 'Europe/Oslo', 'Europe/Copenhagen',
+  'Europe/Helsinki', 'Europe/Warsaw', 'Europe/Prague', 'Europe/Budapest',
+  'Europe/Bucharest', 'Europe/Sofia', 'Europe/Athens', 'Europe/Istanbul', 'Europe/Moscow',
+  'America/New_York', 'America/Chicago', 'America/Denver', 'America/Los_Angeles',
+  'America/Toronto', 'America/Vancouver', 'America/Mexico_City',
+  'America/Sao_Paulo', 'America/Buenos_Aires', 'America/Bogota',
+  'America/Lima', 'America/Santiago', 'America/Caracas',
+  'Asia/Tokyo', 'Asia/Seoul', 'Asia/Shanghai', 'Asia/Hong_Kong',
+  'Asia/Singapore', 'Asia/Bangkok', 'Asia/Kolkata', 'Asia/Dubai',
+  'Asia/Riyadh', 'Asia/Jerusalem', 'Asia/Jakarta',
+  'Australia/Sydney', 'Australia/Melbourne', 'Australia/Perth',
+  'Pacific/Auckland', 'Pacific/Honolulu',
+  'Africa/Cairo', 'Africa/Johannesburg', 'Africa/Lagos', 'Africa/Nairobi',
+]
+
 const MAX_SIZE_MB = 5
 
 function LogoUploadBox({
@@ -148,6 +176,14 @@ export function EventDetailsEditor({ event }: { event: Event }) {
   const [imageDarkUrl, setImageDarkUrl] = useState(event.image_url_dark ?? '')
   const [description, setDescription] = useState(event.description ?? '')
   const [links, setLinks] = useState<Link[]>(event.links ?? [])
+
+  const [locationText, setLocationText] = useState(event.location ?? '')
+  const [suggestions, setSuggestions] = useState<GeoResult[]>([])
+  const [showSuggestions, setShowSuggestions] = useState(false)
+  const [geoLoading, setGeoLoading] = useState(false)
+  const [timezone, setTimezone] = useState(event.timezone ?? 'UTC')
+  const searchTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+
   const [saved, setSaved] = useState(false)
   const [saving, startSave] = useTransition()
 
@@ -155,6 +191,39 @@ export function EventDetailsEditor({ event }: { event: Event }) {
   function removeLink(i: number) { setLinks((p) => p.filter((_, idx) => idx !== i)); setSaved(false) }
   function updateLink(i: number, field: 'label' | 'url', value: string) {
     setLinks((p) => p.map((l, idx) => idx === i ? { ...l, [field]: value } : l))
+    setSaved(false)
+  }
+
+  function handleLocationChange(val: string) {
+    setLocationText(val)
+    setSaved(false)
+    if (searchTimeoutRef.current) clearTimeout(searchTimeoutRef.current)
+    if (!val.trim()) { setSuggestions([]); setShowSuggestions(false); return }
+
+    searchTimeoutRef.current = setTimeout(async () => {
+      setGeoLoading(true)
+      try {
+        const res = await fetch(
+          `https://geocoding-api.open-meteo.com/v1/search?name=${encodeURIComponent(val.split(',')[0].trim())}&count=5&language=en&format=json`,
+        )
+        const data = await res.json()
+        const results: GeoResult[] = data.results ?? []
+        setSuggestions(results)
+        setShowSuggestions(results.length > 0)
+      } catch {
+        setSuggestions([])
+      } finally {
+        setGeoLoading(false)
+      }
+    }, 350)
+  }
+
+  function selectSuggestion(result: GeoResult) {
+    const parts = [result.name, result.admin1, result.country].filter(Boolean)
+    setLocationText(parts.join(', '))
+    setTimezone(result.timezone)
+    setSuggestions([])
+    setShowSuggestions(false)
     setSaved(false)
   }
 
@@ -168,12 +237,15 @@ export function EventDetailsEditor({ event }: { event: Event }) {
         image_url_dark: imageDarkUrl || null,
         description: description.trim() || null,
         links: links.filter((l) => l.url.trim()),
+        location: locationText.trim() || event.location,
+        timezone,
       })
       setSaved(true)
     })
   }
 
   const previewName = name.trim() || event.name
+  const timezoneOptions = TIMEZONES.includes(timezone) ? TIMEZONES : [timezone, ...TIMEZONES]
 
   return (
     <div className="bg-card border border-border rounded-2xl p-6 shadow-sm flex flex-col gap-6">
@@ -188,6 +260,61 @@ export function EventDetailsEditor({ event }: { event: Event }) {
           placeholder="Festival name"
           className="text-sm"
         />
+      </div>
+
+      {/* Location */}
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-sm">Location</Label>
+        <div className="relative">
+          <Input
+            value={locationText}
+            onChange={(e) => handleLocationChange(e.target.value)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
+            onFocus={() => suggestions.length > 0 && setShowSuggestions(true)}
+            placeholder="Search for a city or venue…"
+            className="text-sm"
+          />
+          {geoLoading && (
+            <span className="absolute right-3 top-1/2 -translate-y-1/2 text-xs text-muted-foreground">
+              Searching…
+            </span>
+          )}
+          {showSuggestions && suggestions.length > 0 && (
+            <div className="absolute z-50 top-full mt-1 w-full rounded-md border border-border bg-popover shadow-md overflow-hidden">
+              {suggestions.map((s) => {
+                const parts = [s.name, s.admin1, s.country].filter(Boolean)
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    className="flex flex-col w-full text-left px-3 py-2 hover:bg-muted transition-colors border-b border-border/50 last:border-0"
+                    onMouseDown={() => selectSuggestion(s)}
+                  >
+                    <span className="text-sm font-medium">{parts.join(', ')}</span>
+                    <span className="text-xs text-muted-foreground">{s.timezone}</span>
+                  </button>
+                )
+              })}
+            </div>
+          )}
+        </div>
+      </div>
+
+      {/* Timezone */}
+      <div className="flex flex-col gap-1.5">
+        <Label className="text-sm">Timezone</Label>
+        <select
+          value={timezone}
+          onChange={(e) => { setTimezone(e.target.value); setSaved(false) }}
+          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-sm transition-colors focus-visible:outline-none focus-visible:ring-1 focus-visible:ring-ring"
+        >
+          {timezoneOptions.map((tz) => (
+            <option key={tz} value={tz}>{tz.replace(/_/g, ' ')}</option>
+          ))}
+        </select>
+        <p className="text-xs text-muted-foreground/60">
+          Auto-detected when you pick a location. Affects schedule display and sunrise/sunset times.
+        </p>
       </div>
 
       {/* Display font */}

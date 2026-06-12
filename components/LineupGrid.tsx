@@ -2,11 +2,12 @@
 
 import React, { useEffect, useMemo, useState } from 'react'
 import { Performance, Stage, Member, Plan } from '@/lib/types'
+import { SunDay } from '@/lib/sun-times'
 import { PerformanceCard } from './PerformanceCard'
 import { ScheduleExportDialog } from './ScheduleExportDialog'
 import { ExportEntry } from '@/lib/schedule-export'
 import { Button } from '@/components/ui/button'
-import { ImageDownIcon } from 'lucide-react'
+import { ImageDownIcon, ArrowUp, ArrowDown } from 'lucide-react'
 
 type StageWithPerfs = Stage & { performances: Performance[] }
 
@@ -17,6 +18,7 @@ interface LineupGridProps {
   memberName?: string
   logoUrl?: string | null
   timezone: string
+  sunTimes?: SunDay[]
   guestMode?: boolean
   onToggle: (performanceId: string) => void
 }
@@ -46,7 +48,7 @@ function buildTimeMarkers(minSlot: number, maxSlot: number, tz: string): TimeMar
   return markers
 }
 
-export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl, timezone, guestMode = false, onToggle }: LineupGridProps) {
+export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl, timezone, sunTimes, guestMode = false, onToggle }: LineupGridProps) {
   const allPerfs = stages.flatMap((s) => s.performances)
 
   const days = useMemo(() => {
@@ -155,6 +157,22 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
       timeMarkers: buildTimeMarkers(minSlot, maxSlot, timezone),
     }
   }, [filteredStages, timezone])
+
+  const sunMarkers = useMemo(() => {
+    if (!sunTimes || minTime === 0) return []
+    const dayTimes = sunTimes.find((d) => d.dateKey === activeDay)
+    if (!dayTimes) return []
+    const markers: { type: 'sunrise' | 'sunset'; offset: number }[] = []
+    const riseOffset = (dayTimes.sunriseMinutes - minTime) * PX_PER_MIN
+    if (riseOffset >= 0 && riseOffset <= totalHeight) {
+      markers.push({ type: 'sunrise', offset: riseOffset })
+    }
+    const setOffset = (dayTimes.sunsetMinutes - minTime) * PX_PER_MIN
+    if (setOffset >= 0 && setOffset <= totalHeight) {
+      markers.push({ type: 'sunset', offset: setOffset })
+    }
+    return markers
+  }, [sunTimes, activeDay, minTime, totalHeight])
 
   if (allPerfs.length === 0) {
     return (
@@ -270,6 +288,21 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
                   {m.label}
                 </div>
               ))}
+              {sunMarkers.map((m) => (
+                <div
+                  key={m.type}
+                  className="absolute left-1.5 right-0 flex items-center gap-1 -translate-y-1/2"
+                  style={{ top: m.offset }}
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={`/${m.type}_icon.png`} alt={m.type} className="w-8 h-8 shrink-0" />
+                  {m.type === 'sunrise'
+                    ? <ArrowUp className="w-3 h-3 shrink-0" style={{ color: 'rgb(252,198,89)' }} />
+                    : <ArrowDown className="w-3 h-3 shrink-0" style={{ color: 'rgb(252,198,89)' }} />
+                  }
+                  <div className="flex-1 h-0 ml-1" style={{ borderTop: '2px dashed rgba(252,198,89,0.8)' }} />
+                </div>
+              ))}
             </div>
 
             {/* Stage columns */}
@@ -288,7 +321,6 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
                     style={{ top: m.offset }}
                   />
                 ))}
-
                 {stage.performances.map((perf) => {
                   const top = (toMinutes(perf.start_time) - minTime) * PX_PER_MIN
                   const height =

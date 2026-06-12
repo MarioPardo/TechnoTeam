@@ -9,6 +9,7 @@ import { addCrewCode } from '@/lib/crew-cookies'
 import { cn } from '@/lib/utils'
 import { getFontStyle, formatEventDates } from '@/lib/festival-font'
 import { Member, Plan, Performance, Stage, Group } from '@/lib/types'
+import { SunDay } from '@/lib/sun-times'
 import { LineupGrid } from './LineupGrid'
 import { GroupSidebar } from './GroupSidebar'
 import { GroupChat } from './GroupChat'
@@ -25,6 +26,7 @@ interface GroupPlanningViewProps {
   group: GroupWithEvent
   stages: StageWithPerfs[]
   initialPlans: PlanWithMember[]
+  sunTimes?: SunDay[]
 }
 
 const SESSION_KEY = 'festival-session-token'
@@ -32,7 +34,7 @@ const MIN_SIDEBAR_WIDTH = 160
 const MAX_SIDEBAR_WIDTH = 420
 const DEFAULT_SIDEBAR_WIDTH = 208
 
-export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanningViewProps) {
+export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: GroupPlanningViewProps) {
   const [members, setMembers] = useState<Member[]>(group.members)
   const [plans, setPlans] = useState<PlanWithMember[]>(initialPlans)
   const [currentMember, setCurrentMember] = useState<Member | null>(null)
@@ -457,6 +459,7 @@ export function GroupPlanningView({ group, stages, initialPlans }: GroupPlanning
             memberName={currentMember.name}
             logoUrl={group.events.image_url_dark ?? group.events.image_url}
             timezone={(group as any).events?.timezone ?? 'UTC'}
+            sunTimes={sunTimes}
             onToggle={handleToggle}
           />
         </div>

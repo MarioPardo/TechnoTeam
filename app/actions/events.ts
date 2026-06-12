@@ -54,6 +54,8 @@ export async function updateEvent(
     description?: string | null
     links?: Array<{ label: string; url: string }>
     font?: string | null
+    location?: string
+    timezone?: string
   },
 ) {
   const { error } = await supabase
