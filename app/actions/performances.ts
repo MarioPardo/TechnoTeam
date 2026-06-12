@@ -1,15 +1,18 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { supabase } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase-server'
 import { localInputToUTC } from '@/lib/tz'
+import { isManageUnlocked } from '@/app/actions/auth'
 
 async function getEventTimezone(eventId: string): Promise<string> {
-  const { data } = await supabase.from('events').select('timezone').eq('id', eventId).single()
+  const { data } = await supabaseServer.from('events').select('timezone').eq('id', eventId).single()
   return (data as { timezone: string } | null)?.timezone ?? 'UTC'
 }
 
 export async function createPerformance(stageId: string, eventId: string, formData: FormData) {
+  if (!(await isManageUnlocked())) throw new Error('Unauthorized')
+
   const artist = formData.get('artist') as string
   const start_time = formData.get('start_time') as string
   const end_time = formData.get('end_time') as string
@@ -17,7 +20,7 @@ export async function createPerformance(stageId: string, eventId: string, formDa
 
   const tz = await getEventTimezone(eventId)
 
-  const { error } = await supabase.from('performances').insert({
+  const { error } = await supabaseServer.from('performances').insert({
     stage_id: stageId,
     artist,
     start_time: localInputToUTC(start_time, tz),
@@ -34,9 +37,11 @@ export async function updatePerformance(
   eventId: string,
   data: { artist: string; start_time: string; end_time: string; description: string | null },
 ) {
+  if (!(await isManageUnlocked())) throw new Error('Unauthorized')
+
   const tz = await getEventTimezone(eventId)
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from('performances')
     .update({
       artist: data.artist,
@@ -51,7 +56,9 @@ export async function updatePerformance(
 }
 
 export async function deletePerformance(performanceId: string, eventId: string) {
-  const { error } = await supabase.from('performances').delete().eq('id', performanceId)
+  if (!(await isManageUnlocked())) throw new Error('Unauthorized')
+
+  const { error } = await supabaseServer.from('performances').delete().eq('id', performanceId)
   if (error) throw new Error(error.message)
   revalidatePath(`/events/${eventId}/manage`)
 }

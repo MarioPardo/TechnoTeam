@@ -2,23 +2,22 @@
 
 import { scryptSync, randomBytes, timingSafeEqual } from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
-import { supabase } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase-server'
 import { Member } from '@/lib/types'
 import { isMemberColor, pickMemberColor } from '@/lib/member-colors'
 
 const MEMBER_COLS = 'id, group_id, name, session_token, color, created_at'
 
 async function getGroupMemberColors(groupId: string): Promise<{ name: string; color: string | null }[]> {
-  const { data } = await supabase.from('members').select('name, color').eq('group_id', groupId)
+  const { data } = await supabaseServer.from('members').select('name, color').eq('group_id', groupId)
   return (data as { name: string; color: string | null }[] | null) ?? []
 }
 
-/** Members created before the `color` column existed may not have one yet — assign and persist one lazily. */
 async function ensureMemberColor(member: Member): Promise<Member> {
   if (member.color) return member
   const groupMembers = await getGroupMemberColors(member.group_id)
   const color = pickMemberColor(member.name, groupMembers)
-  await supabase.from('members').update({ color } as any).eq('id', member.id)
+  await supabaseServer.from('members').update({ color } as any).eq('id', member.id)
   return { ...member, color }
 }
 
@@ -44,7 +43,7 @@ export async function signInOrJoin(
 ): Promise<Member> {
   const trimmedName = name.trim()
 
-  const { data: existing } = await supabase
+  const { data: existing } = await supabaseServer
     .from('members')
     .select(`${MEMBER_COLS}, password_hash`)
     .eq('group_id', groupId)
@@ -65,7 +64,7 @@ export async function signInOrJoin(
   const passwordHash = password ? hashPassword(password) : null
   const groupMembers = await getGroupMemberColors(groupId)
 
-  const { data, error } = await supabase
+  const { data, error } = await supabaseServer
     .from('members')
     .insert({
       group_id: groupId,
@@ -82,7 +81,7 @@ export async function signInOrJoin(
 }
 
 export async function getMemberByToken(sessionToken: string): Promise<Member | null> {
-  const { data } = await supabase
+  const { data } = await supabaseServer
     .from('members')
     .select(MEMBER_COLS)
     .eq('session_token', sessionToken)
@@ -92,12 +91,16 @@ export async function getMemberByToken(sessionToken: string): Promise<Member | n
   return ensureMemberColor(data as Member)
 }
 
-export async function leaveGroup(memberId: string): Promise<void> {
-  const { error } = await supabase
+export async function leaveGroup(memberId: string, sessionToken: string): Promise<void> {
+  const { data: member } = await supabaseServer
     .from('members')
-    .delete()
+    .select('id, session_token')
     .eq('id', memberId)
+    .single()
 
+  if (!member || (member as any).session_token !== sessionToken) throw new Error('Unauthorized')
+
+  const { error } = await supabaseServer.from('members').delete().eq('id', memberId)
   if (error) throw new Error(error.message)
 }
 
@@ -107,7 +110,7 @@ export async function updateMemberPassword(
   currentPassword: string,
   newPassword: string,
 ): Promise<void> {
-  const { data: member, error: fetchError } = await supabase
+  const { data: member, error: fetchError } = await supabaseServer
     .from('members')
     .select('id, session_token, password_hash')
     .eq('id', memberId)
@@ -125,7 +128,7 @@ export async function updateMemberPassword(
 
   const newHash = newPassword ? hashPassword(newPassword) : null
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from('members')
     .update({ password_hash: newHash } as any)
     .eq('id', memberId)
@@ -136,7 +139,7 @@ export async function updateMemberPassword(
 export async function updateMemberColor(memberId: string, sessionToken: string, color: string): Promise<void> {
   if (!isMemberColor(color)) throw new Error('Invalid color')
 
-  const { data: member, error: fetchError } = await supabase
+  const { data: member, error: fetchError } = await supabaseServer
     .from('members')
     .select('id, session_token')
     .eq('id', memberId)
@@ -145,7 +148,7 @@ export async function updateMemberColor(memberId: string, sessionToken: string, 
   if (fetchError || !member) throw new Error('Member not found')
   if ((member as any).session_token !== sessionToken) throw new Error('Unauthorized')
 
-  const { error } = await supabase
+  const { error } = await supabaseServer
     .from('members')
     .update({ color } as any)
     .eq('id', memberId)

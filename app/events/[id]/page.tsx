@@ -26,7 +26,7 @@ export default async function EventPage({ params }: { params: Promise<{ id: stri
       isEventUnlocked(event.id, event.password_hash),
     ])
     if (!manageUnlocked && !eventUnlocked) {
-      return <EventPasswordGate eventId={event.id} eventName={event.name} passwordHash={event.password_hash} />
+      return <EventPasswordGate eventId={event.id} eventName={event.name} />
     }
   }
 

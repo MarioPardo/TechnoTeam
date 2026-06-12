@@ -10,10 +10,9 @@ import { Label } from '@/components/ui/label'
 interface Props {
   eventId: string
   eventName: string
-  passwordHash: string
 }
 
-export function EventPasswordGate({ eventId, eventName, passwordHash }: Props) {
+export function EventPasswordGate({ eventId, eventName }: Props) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState<string | null>(null)
   const [isPending, startTransition] = useTransition()
@@ -23,7 +22,7 @@ export function EventPasswordGate({ eventId, eventName, passwordHash }: Props) {
     if (!password) return
     setError(null)
     startTransition(async () => {
-      const result = await unlockEvent(eventId, password, passwordHash)
+      const result = await unlockEvent(eventId, password)
       if (result.error) {
         setError(result.error)
       } else {

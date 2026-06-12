@@ -2,6 +2,7 @@
 
 import { cookies } from 'next/headers'
 import { createHash } from 'crypto'
+import { supabaseServer } from '@/lib/supabase-server'
 
 const COOKIE_NAME = 'manage_auth'
 const EVENT_COOKIE_PREFIX = 'event_auth_'
@@ -34,9 +35,17 @@ export async function isManageUnlocked(): Promise<boolean> {
   return stored === hashPassword(expected)
 }
 
-export async function unlockEvent(eventId: string, password: string, expectedHash: string): Promise<{ error?: string }> {
+export async function unlockEvent(eventId: string, password: string): Promise<{ error?: string }> {
+  const { data: event } = await supabaseServer
+    .from('events')
+    .select('password_hash')
+    .eq('id', eventId)
+    .single()
+
+  if (!event?.password_hash) return { error: 'Event not found.' }
+
   const hash = hashPassword(password.trim())
-  if (hash !== expectedHash) return { error: 'Incorrect password.' }
+  if (hash !== event.password_hash) return { error: 'Incorrect password.' }
 
   const cookieStore = await cookies()
   cookieStore.set(`${EVENT_COOKIE_PREFIX}${eventId}`, hash, {

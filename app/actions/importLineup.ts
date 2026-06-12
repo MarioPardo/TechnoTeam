@@ -1,7 +1,8 @@
 'use server'
 
 import { revalidatePath } from 'next/cache'
-import { supabase } from '@/lib/supabase'
+import { supabaseServer } from '@/lib/supabase-server'
+import { isManageUnlocked } from '@/app/actions/auth'
 
 type LineupEntry = {
   stage: string
@@ -12,23 +13,18 @@ type LineupEntry = {
   note?: string
 }
 
-// Colours assigned to auto-created stages during import
 const AUTO_COLORS = [
   '#6366f1', '#ec4899', '#f59e0b', '#10b981',
   '#06b6d4', '#f97316', '#8b5cf6', '#14b8a6',
 ]
 
-// Converts a local wall-clock date+time in the given IANA timezone to a UTC ISO string.
-// Works by computing the offset at that approximate instant via Intl, then correcting.
 function toUTCISO(date: string, time: string, nextDay: boolean, tz: string): string {
   const [year, month, day] = date.split('-').map(Number)
   const [h, m] = time.split(':').map(Number)
   const actualDay = nextDay ? day + 1 : day
 
-  // Treat the local time naively as UTC to get an approximate instant
   const approx = Date.UTC(year, month - 1, actualDay, h, m, 0)
 
-  // Find out what wall-clock time that UTC instant maps to in the target timezone
   const parts = new Intl.DateTimeFormat('en-US', {
     timeZone: tz,
     year: 'numeric', month: '2-digit', day: '2-digit',
@@ -36,17 +32,18 @@ function toUTCISO(date: string, time: string, nextDay: boolean, tz: string): str
   }).formatToParts(new Date(approx))
 
   const get = (type: string) => parseInt(parts.find(p => p.type === type)!.value)
-  const tzHour = get('hour') % 24  // hour12:false can return 24 at midnight
+  const tzHour = get('hour') % 24
   const tzWall = Date.UTC(get('year'), get('month') - 1, get('day'), tzHour, get('minute'))
 
-  // The offset tells us how far off our naive guess was; shift to correct UTC instant
   return new Date(approx - (tzWall - approx)).toISOString()
 }
 
 export type ImportResult = { added: number; errors: string[] }
 
 export async function importLineupJSON(eventId: string, json: string): Promise<ImportResult> {
-  const { data: eventData } = await supabase
+  if (!(await isManageUnlocked())) throw new Error('Unauthorized')
+
+  const { data: eventData } = await supabaseServer
     .from('events')
     .select('timezone')
     .eq('id', eventId)
@@ -62,15 +59,14 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
     throw new Error(`Invalid JSON — ${(e as Error).message}`)
   }
 
-  // Load existing stages
-  const { data: existingStages } = await supabase
+  const { data: existingStages } = await supabaseServer
     .from('stages')
     .select('id, name, order_index, color')
     .eq('event_id', eventId)
     .order('order_index', { ascending: false })
 
   const rows = (existingStages ?? []) as { id: string; name: string; order_index: number }[]
-  const stageByName = new Map<string, string>() // lowercase name → id
+  const stageByName = new Map<string, string>()
   let nextOrder = rows.length > 0 ? rows[0].order_index + 1 : 0
   for (const s of rows) stageByName.set(s.name.toLowerCase(), s.id)
 
@@ -95,13 +91,12 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
       continue
     }
 
-    // Find or create stage
     const key = e.stage.trim().toLowerCase()
     let stageId = stageByName.get(key)
     if (!stageId) {
       const color = AUTO_COLORS[colorCursor % AUTO_COLORS.length]
       colorCursor++
-      const { data, error } = await supabase
+      const { data, error } = await supabaseServer
         .from('stages')
         .insert({ event_id: eventId, name: e.stage.trim(), order_index: nextOrder++, color } as any)
         .select('id')
@@ -111,12 +106,11 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
       stageByName.set(key, stageId)
     }
 
-    // end < start means the set runs past midnight → bump end to next calendar day
     const [sh, sm] = e.start.split(':').map(Number)
     const [eh, em] = e.end.split(':').map(Number)
     const wrapDay = eh * 60 + em < sh * 60 + sm
 
-    const { error: pErr } = await supabase.from('performances').insert({
+    const { error: pErr } = await supabaseServer.from('performances').insert({
       stage_id: stageId,
       artist: e.artist.trim(),
       start_time: toUTCISO(e.date, e.start, false, timezone),

@@ -67,7 +67,7 @@ export function GroupChat({ groupId, currentMember, members, collapsed, onToggle
     setSending(true)
     setInput('')
     try {
-      await sendMessage(groupId, currentMember.id, content)
+      await sendMessage(groupId, currentMember.id, content, currentMember.session_token)
     } catch {
       setInput(content)
     } finally {

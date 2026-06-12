@@ -30,6 +30,7 @@ interface GroupPlanningViewProps {
 }
 
 const SESSION_KEY = 'festival-session-token'
+const MEMBER_ID_KEY = 'festival-member-id'
 const MIN_SIDEBAR_WIDTH = 160
 const MAX_SIDEBAR_WIDTH = 420
 const DEFAULT_SIDEBAR_WIDTH = 208
@@ -68,10 +69,11 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
 
   useEffect(() => {
     const token = localStorage.getItem(SESSION_KEY)
-    if (!token) return
-    const found = group.members.find((m) => m.session_token === token)
+    const memberId = localStorage.getItem(MEMBER_ID_KEY)
+    if (!token || !memberId) return
+    const found = group.members.find((m) => m.id === memberId)
     if (found) {
-      setCurrentMember(found)
+      setCurrentMember({ ...found, session_token: token })
       addCrewCode(group.code)
     }
   }, [group.members, group.code])
@@ -151,6 +153,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
     try {
       const member = await signInOrJoin(group.id, joinName.trim(), joinPassword || undefined)
       localStorage.setItem(SESSION_KEY, member.session_token)
+      localStorage.setItem(MEMBER_ID_KEY, member.id)
       addCrewCode(group.code)
       setCurrentMember(member)
     } catch (err) {
@@ -165,6 +168,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
     try {
       const member = await signInOrJoin(group.id, name)
       localStorage.setItem(SESSION_KEY, member.session_token)
+      localStorage.setItem(MEMBER_ID_KEY, member.id)
       addCrewCode(group.code)
       setCurrentMember(member)
     } catch (err) {
@@ -183,6 +187,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
     try {
       const member = await signInOrJoin(group.id, quickSignIn.name, quickSignIn.password)
       localStorage.setItem(SESSION_KEY, member.session_token)
+      localStorage.setItem(MEMBER_ID_KEY, member.id)
       addCrewCode(group.code)
       setCurrentMember(member)
     } catch (err) {
@@ -194,11 +199,12 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
   const handleLeave = useCallback(async () => {
     if (!currentMember) return
     try {
-      await leaveGroup(currentMember.id)
+      await leaveGroup(currentMember.id, currentMember.session_token)
     } catch (err) {
       console.error(err)
     }
     localStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(MEMBER_ID_KEY)
     setCurrentMember(null)
     setMembers((prev) => prev.filter((m) => m.id !== currentMember.id))
     setPlans((prev) => prev.filter((p) => p.member_id !== currentMember.id))
@@ -224,7 +230,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
     }
 
     try {
-      await togglePlan(currentMember.id, performanceId)
+      await togglePlan(currentMember.id, performanceId, currentMember.session_token)
     } catch {
       // Revert on failure — real-time will correct state
     }
