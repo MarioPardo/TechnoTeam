@@ -18,7 +18,7 @@ events
   date_start    date
   date_end      date
   location      text
-  timezone      text        (IANA tz, e.g. "Europe/London"; auto-detected from location on creation)
+  timezone      text        (IANA tz, e.g. "Europe/Berlin"; auto-detected from location; editable post-creation)
   description   text
   image_url     text        (public URL from Supabase Storage event-images bucket)
   image_url_dark text       (optional dark-mode variant, set via manage page)
@@ -36,8 +36,8 @@ performances
   id            uuid PK
   stage_id      uuid FK → stages.id
   artist        text
-  start_time    timestamptz
-  end_time      timestamptz
+  start_time    timestamptz  (stored as UTC; UI inputs are in local festival time and converted via lib/tz.ts)
+  end_time      timestamptz  (same)
   description   text
 
 groups
@@ -61,6 +61,19 @@ plans
   created_at    timestamptz
   UNIQUE (member_id, performance_id)
 ```
+
+## Sun Times
+
+Sunrise/sunset markers are fetched server-side at page render via `lib/sun-times.ts`:
+
+1. **Geocoding** — the event's `location` field (first part before any comma) is resolved to lat/lng via `https://geocoding-api.open-meteo.com/v1/search`. The API also returns the IANA timezone for the location, which is logged and can help diagnose timezone mismatches.
+2. **Forecast** — lat/lng + date range are sent to `https://api.open-meteo.com/v1/forecast` with `timezone=UTC`. This returns sunrise/sunset as UTC ISO strings (unambiguous).
+3. **Storage** — each day's sunrise and sunset are converted to **UTC epoch minutes** (`ms / 60000`) and keyed by local date string (`dateKey` in the event's timezone). This is the same coordinate space as performance `start_time` / `end_time` after `toMinutes()`.
+4. **Rendering** — `LineupGrid` computes pixel offsets as `(sunriseMinutes − minTime) × PX_PER_MIN`, identical to how performance cards are positioned. The grid's time labels are already in local festival time, so the markers land at the correct visual position automatically.
+
+Both responses are `force-cache`d, so they are only fetched once per build/revalidation.
+
+**Timezone correctness is critical.** If `event.timezone` is wrong (e.g. `UTC` for a European festival), the grid time labels will show UTC times and all markers will appear shifted by the UTC offset. Set the correct timezone via the manage page location picker before adding performances.
 
 ## Routes
 

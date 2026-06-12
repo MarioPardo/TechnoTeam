@@ -12,11 +12,14 @@
 - [x] List all events on home page
 - [x] "Add New Event" button on home page — visible only to admins (manage password unlocked)
 - [x] Logo upload (PNG/JPG/SVG/WebP) stored in Supabase Storage (`event-images` bucket)
-- [x] Timezone auto-detected from location via Nominatim geocoding; user can override
+- [x] Timezone auto-detected from location via open-meteo geocoding (returns exact IANA tz); user can override
+- [x] Location and timezone editable after creation via the manage page (smart location picker with autocomplete)
 - [x] Optional edit password per event — required to open the manage/edit page for that event (does not affect attendee access)
 - [x] Add stages to an event
-- [x] Add performances to a stage (artist, start time, end time)
+- [x] Add performances to a stage (artist, start time, end time) — times entered in local festival time
+- [x] Edit existing performances (artist, times, note) via the pencil icon on each card in the lineup editor
 - [x] Delete stages and performances
+- [x] Sunrise/sunset overlay — thin markers on the lineup grid showing the day's sunrise and sunset times, fetched from open-meteo for the festival location
 
 ### Group Coordination
 - [x] Create a group within an event → get shareable 6-char code
