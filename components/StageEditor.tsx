@@ -344,34 +344,29 @@ export function StageEditor({
   const allPerfs = initialStages.flatMap((s) => s.performances)
 
   const days = useMemo(() => {
-    const keyToLabel = new Map<string, string>()
+    const dayMap = new Map<string, string>()
     for (const perf of allPerfs) {
       const key = toDateKey(perf.start_time, timezone)
-      if (!keyToLabel.has(key)) {
+      if (!dayMap.has(key)) {
         const autoLabel = new Date(perf.start_time).toLocaleDateString('en-GB', { timeZone: timezone, weekday: 'long', day: 'numeric', month: 'long' })
-        keyToLabel.set(key, dayLabels[key] ?? autoLabel)
+        dayMap.set(key, dayLabels[key] ?? autoLabel)
       }
     }
-    const labelGroups = new Map<string, string[]>()
-    for (const [key, label] of keyToLabel) {
-      if (!labelGroups.has(label)) labelGroups.set(label, [])
-      labelGroups.get(label)!.push(key)
-    }
-    return Array.from(labelGroups.entries())
-      .map(([label, dateKeys]) => ({ key: dateKeys.sort()[0], dateKeys: dateKeys.sort(), label }))
-      .sort((a, b) => a.key.localeCompare(b.key))
+    return Array.from(dayMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, label]) => ({ key, label }))
   }, [allPerfs, timezone, dayLabels])
 
   const activeDay = days.find((d) => d.key === selectedDay)?.key ?? days[0]?.key ?? ''
 
-  const filteredStages = useMemo(() => {
-    const activeDayEntry = days.find((d) => d.key === activeDay)
-    const activeDateKeys = new Set(activeDayEntry?.dateKeys ?? [activeDay])
-    return orderedInitialStages.map((s) => ({
-      ...s,
-      performances: s.performances.filter((p) => activeDateKeys.has(toDateKey(p.start_time, timezone))),
-    }))
-  }, [orderedInitialStages, days, activeDay, timezone])
+  const filteredStages = useMemo(
+    () =>
+      orderedInitialStages.map((s) => ({
+        ...s,
+        performances: s.performances.filter((p) => toDateKey(p.start_time, timezone) === activeDay),
+      })),
+    [orderedInitialStages, activeDay, timezone],
+  )
 
   const { minTime, totalHeight, timeMarkers } = useMemo(() => {
     const dayPerfs = filteredStages.flatMap((s) => s.performances)
