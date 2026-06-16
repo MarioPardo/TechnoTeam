@@ -59,32 +59,21 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
   }, [timezone])
 
   const days = useMemo(() => {
-    const keyToDisplay = new Map<string, { label: string; shortLabel: string }>()
+    const dayMap = new Map<string, { label: string; shortLabel: string }>()
     for (const perf of allPerfs) {
       const key = toDateKey(perf.start_time, timezone)
-      if (!keyToDisplay.has(key)) {
+      if (!dayMap.has(key)) {
         const date = new Date(perf.start_time)
         const custom = dayLabels[key]
-        keyToDisplay.set(key, {
+        dayMap.set(key, {
           label: custom ?? date.toLocaleDateString('en-GB', { timeZone: timezone, weekday: 'long', day: 'numeric', month: 'long' }),
           shortLabel: custom ?? date.toLocaleDateString('en-GB', { timeZone: timezone, day: 'numeric', month: 'long' }),
         })
       }
     }
-    // Merge date keys that share the same label (e.g. midnight-crossing nights with a custom day name)
-    const labelGroups = new Map<string, { dateKeys: string[]; shortLabel: string }>()
-    for (const [key, { label, shortLabel }] of keyToDisplay) {
-      if (!labelGroups.has(label)) labelGroups.set(label, { dateKeys: [], shortLabel })
-      labelGroups.get(label)!.dateKeys.push(key)
-    }
-    return Array.from(labelGroups.entries())
-      .map(([label, { dateKeys, shortLabel }]) => ({
-        key: dateKeys.sort()[0],
-        dateKeys: dateKeys.sort(),
-        label,
-        shortLabel,
-      }))
-      .sort((a, b) => a.key.localeCompare(b.key))
+    return Array.from(dayMap.entries())
+      .sort(([a], [b]) => a.localeCompare(b))
+      .map(([key, { label, shortLabel }]) => ({ key, label, shortLabel }))
   }, [allPerfs, timezone, dayLabels])
 
   const [viewMode, setViewMode] = useState<'group' | 'mine'>('group')
@@ -134,22 +123,22 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
     setDragOverId(null)
   }
 
-  const filteredStages = useMemo(() => {
-    const activeDayEntry = days.find((d) => d.key === activeDay)
-    const activeDateKeys = new Set(activeDayEntry?.dateKeys ?? [activeDay])
-    return orderedStages
-      .map((stage) => ({
-        ...stage,
-        performances: stage.performances.filter((perf) => {
-          if (!activeDateKeys.has(toDateKey(perf.start_time, timezone))) return false
-          if (viewMode === 'mine') {
-            return plans.some((p) => p.performance_id === perf.id && p.member_id === currentMemberId)
-          }
-          return true
-        }),
-      }))
-      .filter((stage) => stage.performances.length > 0)
-  }, [orderedStages, days, activeDay, timezone, viewMode, plans, currentMemberId])
+  const filteredStages = useMemo(
+    () =>
+      orderedStages
+        .map((stage) => ({
+          ...stage,
+          performances: stage.performances.filter((perf) => {
+            if (toDateKey(perf.start_time, timezone) !== activeDay) return false
+            if (viewMode === 'mine') {
+              return plans.some((p) => p.performance_id === perf.id && p.member_id === currentMemberId)
+            }
+            return true
+          }),
+        }))
+        .filter((stage) => stage.performances.length > 0),
+    [orderedStages, activeDay, timezone, viewMode, plans, currentMemberId],
+  )
 
   const exportEntries = useMemo<ExportEntry[]>(
     () =>
@@ -272,7 +261,7 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
             <div className="w-28 shrink-0 flex items-end justify-center pb-2">
               <span className="text-[10px] text-muted-foreground/60 font-medium">{tzAbbr}</span>
             </div>
-            {orderedStages.map((stage) => (
+            {filteredStages.map((stage) => (
               <div
                 key={stage.id}
                 draggable
