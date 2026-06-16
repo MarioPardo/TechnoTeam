@@ -465,6 +465,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
             logoUrl={group.events.image_url_dark ?? group.events.image_url}
             timezone={(group as any).events?.timezone ?? 'UTC'}
             sunTimes={sunTimes}
+            dayLabels={(group as any).events?.day_labels ?? {}}
             onToggle={handleToggle}
           />
         </div>

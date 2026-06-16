@@ -242,6 +242,7 @@ export function EventView({ event, stages, sunTimes }: EventViewProps) {
               logoUrl={event.image_url_dark ?? event.image_url}
               timezone={event.timezone}
               sunTimes={sunTimes}
+              dayLabels={event.day_labels ?? {}}
               guestMode
               onToggle={(perfId) => setGuestPicks(toggleGuestPick(event.id, perfId))}
             />

@@ -63,7 +63,7 @@ export default async function ManagePage({ params }: { params: Promise<{ id: str
           <h2 className="text-xl font-semibold tracking-tight">Lineup</h2>
           <p className="text-sm text-muted-foreground mt-0.5">Manage stages and sets.</p>
         </div>
-        <StageEditor eventId={id} initialStages={stages} timezone={event.timezone} />
+        <StageEditor eventId={id} initialStages={stages} timezone={event.timezone} dayLabels={event.day_labels ?? {}} />
       </div>
     </div>
   )

@@ -263,7 +263,8 @@ const LLM_PROMPT = `Given a festival lineup image, output a JSON array — one o
     "date": "YYYY-MM-DD",
     "start": "HH:MM",
     "end": "HH:MM",
-    "note": "optional extra info"
+    "note": "optional extra info",
+    "day_label": "optional custom name for this day tab (e.g. Pre Party)"
   }
 ]
 
@@ -272,16 +273,19 @@ Rules:
 - Times are local festival time — use exactly what is printed on the lineup.
 - If a set ends after midnight, keep the original date for both start and end — the end time will auto-wrap to the next day.
 - Omit "note" if there is nothing extra to say.
+- Omit "day_label" unless the day has a special name (e.g. "Pre Party", "Day 1"). Only one entry per date needs it.
 - Output only the raw JSON array, no explanation.`
 
 export function StageEditor({
   eventId,
   initialStages,
   timezone,
+  dayLabels = {},
 }: {
   eventId: string
   initialStages: StageWithPerfs[]
   timezone: string
+  dayLabels?: Record<string, string>
 }) {
   const [selectedDay, setSelectedDay] = useState('')
   const [addingToStage, setAddingToStage] = useState<{ id: string; name: string } | null>(null)
@@ -340,28 +344,34 @@ export function StageEditor({
   const allPerfs = initialStages.flatMap((s) => s.performances)
 
   const days = useMemo(() => {
-    const dayMap = new Map<string, string>()
+    const keyToLabel = new Map<string, string>()
     for (const perf of allPerfs) {
       const key = toDateKey(perf.start_time, timezone)
-      if (!dayMap.has(key)) {
-        dayMap.set(key, new Date(perf.start_time).toLocaleDateString('en-GB', { timeZone: timezone, weekday: 'long', day: 'numeric', month: 'long' }))
+      if (!keyToLabel.has(key)) {
+        const autoLabel = new Date(perf.start_time).toLocaleDateString('en-GB', { timeZone: timezone, weekday: 'long', day: 'numeric', month: 'long' })
+        keyToLabel.set(key, dayLabels[key] ?? autoLabel)
       }
     }
-    return Array.from(dayMap.entries())
-      .sort(([a], [b]) => a.localeCompare(b))
-      .map(([key, label]) => ({ key, label }))
-  }, [allPerfs, timezone])
+    const labelGroups = new Map<string, string[]>()
+    for (const [key, label] of keyToLabel) {
+      if (!labelGroups.has(label)) labelGroups.set(label, [])
+      labelGroups.get(label)!.push(key)
+    }
+    return Array.from(labelGroups.entries())
+      .map(([label, dateKeys]) => ({ key: dateKeys.sort()[0], dateKeys: dateKeys.sort(), label }))
+      .sort((a, b) => a.key.localeCompare(b.key))
+  }, [allPerfs, timezone, dayLabels])
 
   const activeDay = days.find((d) => d.key === selectedDay)?.key ?? days[0]?.key ?? ''
 
-  const filteredStages = useMemo(
-    () =>
-      orderedInitialStages.map((s) => ({
-        ...s,
-        performances: s.performances.filter((p) => toDateKey(p.start_time, timezone) === activeDay),
-      })),
-    [orderedInitialStages, activeDay, timezone],
-  )
+  const filteredStages = useMemo(() => {
+    const activeDayEntry = days.find((d) => d.key === activeDay)
+    const activeDateKeys = new Set(activeDayEntry?.dateKeys ?? [activeDay])
+    return orderedInitialStages.map((s) => ({
+      ...s,
+      performances: s.performances.filter((p) => activeDateKeys.has(toDateKey(p.start_time, timezone))),
+    }))
+  }, [orderedInitialStages, days, activeDay, timezone])
 
   const { minTime, totalHeight, timeMarkers } = useMemo(() => {
     const dayPerfs = filteredStages.flatMap((s) => s.performances)
@@ -447,7 +457,7 @@ export function StageEditor({
           <textarea
             value={importJson}
             onChange={(e) => { setImportJson(e.target.value); setImportResult(null) }}
-            placeholder={'[{"stage":"Main Stage","artist":"Artist Name","date":"2024-07-05","start":"22:00","end":"00:30"}]\n\nTimes are local festival time — use exactly what is printed on the lineup.'}
+            placeholder={'[{"stage":"Main Stage","artist":"Artist Name","date":"2024-07-05","start":"22:00","end":"00:30","day_label":"Day 1"}]\n\nTimes are local festival time. Add "day_label" to give a day a custom name (e.g. "Pre Party").'}
             spellCheck={false}
             className="w-full h-52 bg-background border border-border rounded-xl p-3 text-sm font-mono text-foreground resize-y focus:outline-none focus:ring-2 focus:ring-ring/50 focus:border-primary placeholder:text-muted-foreground/50"
           />

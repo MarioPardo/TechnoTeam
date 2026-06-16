@@ -48,6 +48,7 @@ export type Event = {
   links: Array<{ label: string; url: string }> | null
   password_hash: string | null
   font: string | null
+  day_labels: Record<string, string>
   created_at: string
 }
 

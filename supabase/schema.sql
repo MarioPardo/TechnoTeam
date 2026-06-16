@@ -16,6 +16,7 @@ create table if not exists events (
   image_url_dark  text,
   links           jsonb not null default '[]',
   font            text,
+  day_labels      jsonb not null default '{}',
   created_at  timestamptz not null default now()
 );
 
@@ -25,6 +26,7 @@ create table if not exists events (
 -- alter table events add column if not exists image_url_dark text;
 -- alter table events add column if not exists links jsonb not null default '[]';
 -- alter table events add column if not exists font text;
+-- alter table events add column if not exists day_labels jsonb not null default '{}';
 
 -- Stages
 create table if not exists stages (

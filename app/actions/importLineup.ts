@@ -7,10 +7,11 @@ import { isManageUnlocked } from '@/app/actions/auth'
 type LineupEntry = {
   stage: string
   artist: string
-  date: string   // YYYY-MM-DD
-  start: string  // HH:MM  24h
-  end: string    // HH:MM  24h — if end < start, wraps to next day
+  date: string       // YYYY-MM-DD
+  start: string      // HH:MM  24h
+  end: string        // HH:MM  24h — if end < start, wraps to next day
   note?: string
+  day_label?: string // optional custom label for the day tab (e.g. "Pre Party")
 }
 
 const AUTO_COLORS = [
@@ -50,6 +51,13 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
     .single()
   const timezone = (eventData as { timezone: string } | null)?.timezone ?? 'UTC'
 
+  const { data: labelsData } = await supabaseServer
+    .from('events')
+    .select('day_labels')
+    .eq('id', eventId)
+    .single()
+  const existingDayLabels: Record<string, string> = (labelsData as { day_labels: Record<string, string> } | null)?.day_labels ?? {}
+
   let entries: LineupEntry[]
   try {
     const parsed = JSON.parse(json)
@@ -73,6 +81,7 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
   let colorCursor = rows.length % AUTO_COLORS.length
   const errors: string[] = []
   let added = 0
+  const collectedDayLabels: Record<string, string> = {}
 
   for (let i = 0; i < entries.length; i++) {
     const e = entries[i]
@@ -89,6 +98,10 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
     if (!/^\d{2}:\d{2}$/.test(e.start) || !/^\d{2}:\d{2}$/.test(e.end)) {
       errors.push(`${label}: start/end must be HH:MM, got "${e.start}" / "${e.end}"`)
       continue
+    }
+
+    if (e.day_label?.trim()) {
+      collectedDayLabels[e.date] = e.day_label.trim()
     }
 
     const key = e.stage.trim().toLowerCase()
@@ -120,6 +133,11 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
 
     if (pErr) errors.push(`${label}: ${pErr.message}`)
     else added++
+  }
+
+  if (Object.keys(collectedDayLabels).length > 0) {
+    const merged = { ...existingDayLabels, ...collectedDayLabels }
+    await supabaseServer.from('events').update({ day_labels: merged } as any).eq('id', eventId)
   }
 
   revalidatePath(`/events/${eventId}/manage`)
