@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { supabase } from '@/lib/supabase'
-import { signInOrJoin, leaveGroup } from '@/app/actions/members'
+import { signInOrJoin, leaveGroup, requestPasswordReset } from '@/app/actions/members'
 import { togglePlan } from '@/app/actions/plans'
 import { addCrewCode } from '@/lib/crew-cookies'
 import { cn } from '@/lib/utils'
@@ -19,7 +19,7 @@ import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 
 type StageWithPerfs = Stage & { performances: Performance[] }
-type PlanWithMember = Plan & { members: Member }
+type PlanWithMember = Plan & { members: Pick<Member, 'id' | 'group_id' | 'name' | 'color' | 'created_at'> }
 type GroupWithEvent = Group & { members: Member[]; events: { id: string; name: string; image_url: string | null; image_url_dark: string | null; timezone: string; date_start: string; date_end: string; font: string | null; location: string } }
 
 interface GroupPlanningViewProps {
@@ -35,6 +35,41 @@ const MIN_SIDEBAR_WIDTH = 160
 const MAX_SIDEBAR_WIDTH = 420
 const DEFAULT_SIDEBAR_WIDTH = 208
 
+function ForgotPasswordLink({ groupId, name }: { groupId: string; name: string }) {
+  const [state, setState] = useState<'idle' | 'sending' | 'sent'>('idle')
+
+  async function handleClick() {
+    if (!name.trim() || state !== 'idle') return
+    setState('sending')
+    try {
+      await requestPasswordReset(groupId, name)
+    } catch (err) {
+      console.error('[ForgotPasswordLink] failed to request reset', err)
+    } finally {
+      setState('sent')
+    }
+  }
+
+  if (state === 'sent') {
+    return (
+      <p className="text-xs text-muted-foreground">
+        If that name has a saved email, we&apos;ve sent a reset link.
+      </p>
+    )
+  }
+
+  return (
+    <button
+      type="button"
+      onClick={handleClick}
+      disabled={state === 'sending' || !name.trim()}
+      className="text-xs text-muted-foreground underline hover:text-foreground transition-colors disabled:opacity-50 self-start"
+    >
+      {state === 'sending' ? 'Sending…' : 'Forgot password?'}
+    </button>
+  )
+}
+
 export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: GroupPlanningViewProps) {
   const [members, setMembers] = useState<Member[]>(group.members)
   const [plans, setPlans] = useState<PlanWithMember[]>(initialPlans)
@@ -42,6 +77,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
   const [joining, setJoining] = useState(false)
   const [joinName, setJoinName] = useState('')
   const [joinPassword, setJoinPassword] = useState('')
+  const [joinEmail, setJoinEmail] = useState('')
   const [joinError, setJoinError] = useState<string | null>(null)
   const [quickSignIn, setQuickSignIn] = useState<{
     name: string
@@ -88,7 +124,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
           const newPlan = payload.new as Plan
           const { data: member } = await supabase
             .from('members')
-            .select('*')
+            .select('id, group_id, name, color, created_at')
             .eq('id', newPlan.member_id)
             .single()
           if (member) {
@@ -113,23 +149,20 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
       .channel(`group-members-${group.id}`)
       .on(
         'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'members' },
+        { event: 'INSERT', schema: 'public', table: 'members', filter: `group_id=eq.${group.id}` },
         (payload) => {
           const newMember = payload.new as Member
-          if (newMember.group_id === group.id) {
-            setMembers((prev) => {
-              if (prev.some((m) => m.id === newMember.id)) return prev
-              return [...prev, newMember]
-            })
-          }
+          setMembers((prev) => {
+            if (prev.some((m) => m.id === newMember.id)) return prev
+            return [...prev, newMember]
+          })
         }
       )
       .on(
         'postgres_changes',
-        { event: 'UPDATE', schema: 'public', table: 'members' },
+        { event: 'UPDATE', schema: 'public', table: 'members', filter: `group_id=eq.${group.id}` },
         (payload) => {
           const updated = payload.new as Member
-          if (updated.group_id !== group.id) return
           setMembers((prev) => prev.map((m) => (m.id === updated.id ? updated : m)))
           setCurrentMember((prev) => (prev?.id === updated.id ? updated : prev))
         }
@@ -151,7 +184,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
     setJoining(true)
     setJoinError(null)
     try {
-      const result = await signInOrJoin(group.id, joinName.trim(), joinPassword || undefined)
+      const result = await signInOrJoin(group.id, joinName.trim(), joinPassword || undefined, joinEmail || undefined)
       if (!result.ok) {
         setJoinError(result.reason === 'needs-password' ? 'This member has a password — please enter it' : 'Wrong password')
         return
@@ -307,7 +340,31 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
                 placeholder={isReturning ? 'Leave blank if none set' : 'Optional — lets you sign in from other devices'}
                 className="mt-1.5"
               />
+              {isReturning && (
+                <div className="mt-1.5">
+                  <ForgotPasswordLink groupId={group.id} name={joinName} />
+                </div>
+              )}
             </div>
+            {joinPassword.trim().length > 0 && (
+              <div>
+                <Label htmlFor="join-email">Email (optional)</Label>
+                <Input
+                  id="join-email"
+                  type="email"
+                  value={joinEmail}
+                  onChange={(e) => setJoinEmail(e.target.value)}
+                  onKeyDown={(e) => e.key === 'Enter' && handleJoin()}
+                  placeholder="For password recovery"
+                  className="mt-1.5"
+                />
+                <p className="text-xs text-muted-foreground/70 mt-1.5">
+                  Only used to recover your password — never for spam or marketing. Not required, but
+                  without it a forgotten password can&apos;t be recovered. If that&apos;s a hassle, skip the
+                  password too and just trust your crewmates.
+                </p>
+              </div>
+            )}
             {joinError && (
               <p className="text-sm text-destructive">{joinError}</p>
             )}
@@ -357,6 +414,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
                   {quickSignIn.error && (
                     <p className="text-sm text-destructive">{quickSignIn.error}</p>
                   )}
+                  <ForgotPasswordLink groupId={group.id} name={quickSignIn.name} />
                 </div>
               )}
 

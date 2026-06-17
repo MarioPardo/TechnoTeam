@@ -1,10 +1,14 @@
 'use server'
 
-import { scryptSync, randomBytes, timingSafeEqual } from 'crypto'
+import { scryptSync, randomBytes, timingSafeEqual, createHash } from 'crypto'
 import { v4 as uuidv4 } from 'uuid'
+import { headers } from 'next/headers'
+import { Resend } from 'resend'
 import { supabaseServer } from '@/lib/supabase-server'
 import { Member } from '@/lib/types'
 import { isMemberColor, pickMemberColor } from '@/lib/member-colors'
+
+const RESET_TOKEN_TTL_MS = 60 * 60 * 1000 // 1 hour
 
 const MEMBER_COLS = 'id, group_id, name, session_token, color, created_at'
 
@@ -46,9 +50,11 @@ export type SignInResult =
 export async function signInOrJoin(
   groupId: string,
   name: string,
-  password?: string
+  password?: string,
+  email?: string,
 ): Promise<SignInResult> {
   const trimmedName = name.trim()
+  const trimmedEmail = email?.trim() || null
 
   const { data: existing } = await supabaseServer
     .from('members')
@@ -62,6 +68,9 @@ export async function signInOrJoin(
     if (storedHash) {
       if (!password) return { ok: false, reason: 'needs-password' }
       if (!verifyPassword(password, storedHash)) return { ok: false, reason: 'wrong-password' }
+    }
+    if (trimmedEmail) {
+      await supabaseServer.from('members').update({ email: trimmedEmail } as any).eq('id', (existing as any).id)
     }
     const { password_hash: _ph, ...member } = existing as any
     return { ok: true, member: await ensureMemberColor(member as Member) }
@@ -79,6 +88,7 @@ export async function signInOrJoin(
       session_token: token,
       color: pickMemberColor(trimmedName, groupMembers),
       ...(passwordHash ? { password_hash: passwordHash } : {}),
+      ...(trimmedEmail ? { email: trimmedEmail } : {}),
     } as any)
     .select(MEMBER_COLS)
     .single()
@@ -129,6 +139,7 @@ export async function updateMemberPassword(
   sessionToken: string,
   currentPassword: string,
   newPassword: string,
+  email?: string,
 ): Promise<UpdatePasswordResult> {
   const { data: member, error: fetchError } = await supabaseServer
     .from('members')
@@ -156,7 +167,10 @@ export async function updateMemberPassword(
 
   const { error } = await supabaseServer
     .from('members')
-    .update({ password_hash: newHash } as any)
+    .update({
+      password_hash: newHash,
+      ...(email !== undefined ? { email: email.trim() || null } : {}),
+    } as any)
     .eq('id', memberId)
 
   if (error) {
@@ -164,6 +178,130 @@ export async function updateMemberPassword(
     throw new Error(error.message)
   }
   return { ok: true }
+}
+
+// email is kept out of the shared Member type / MEMBER_COLS (like
+// password_hash) so it never rides along on the broadly-shared member
+// object — callers must fetch it explicitly with the owning session token.
+export async function getMemberEmail(memberId: string, sessionToken: string): Promise<string | null> {
+  const { data: member, error } = await supabaseServer
+    .from('members')
+    .select('id, session_token, email')
+    .eq('id', memberId)
+    .single()
+
+  if (error || !member) {
+    console.error('[getMemberEmail] member not found', { memberId, error })
+    throw new Error('Member not found')
+  }
+  if ((member as any).session_token !== sessionToken) {
+    console.error('[getMemberEmail] session token mismatch', { memberId })
+    throw new Error('Unauthorized')
+  }
+  return (member as any).email ?? null
+}
+
+// Always resolves the same way whether or not a matching member/email was
+// found, so this can't be used to enumerate crew members or their emails.
+export async function requestPasswordReset(groupId: string, name: string): Promise<{ ok: true }> {
+  const trimmedName = name.trim()
+
+  const { data: member } = await supabaseServer
+    .from('members')
+    .select('id, name, email, password_hash')
+    .eq('group_id', groupId)
+    .ilike('name', trimmedName)
+    .maybeSingle()
+
+  const email = (member as any)?.email as string | null | undefined
+  const passwordHash = (member as any)?.password_hash as string | null | undefined
+
+  if (member && email && passwordHash) {
+    await sendPasswordResetEmail((member as any).id, (member as any).name, email)
+  }
+
+  return { ok: true }
+}
+
+async function sendPasswordResetEmail(memberId: string, name: string, email: string): Promise<void> {
+  const resendKey = process.env.RESEND_API_KEY
+  if (!resendKey) {
+    console.error('[requestPasswordReset] RESEND_API_KEY not set, cannot send reset email')
+    return
+  }
+
+  const rawToken = randomBytes(32).toString('hex')
+  const tokenHash = createHash('sha256').update(rawToken).digest('hex')
+  const expiresAt = new Date(Date.now() + RESET_TOKEN_TTL_MS).toISOString()
+
+  const { error } = await supabaseServer
+    .from('members')
+    .update({ reset_token_hash: tokenHash, reset_token_expires_at: expiresAt } as any)
+    .eq('id', memberId)
+
+  if (error) {
+    console.error('[requestPasswordReset] failed to store reset token', { memberId, error })
+    return
+  }
+
+  const host = (await headers()).get('host')
+  const protocol = host?.startsWith('localhost') ? 'http' : 'https'
+  const resetUrl = `${protocol}://${host}/reset-password?token=${rawToken}`
+
+  const resend = new Resend(resendKey)
+  const { error: sendError } = await resend.emails.send({
+    from: 'TechnoTeam <onboarding@resend.dev>',
+    to: email,
+    subject: 'Reset your TechnoTeam password',
+    html: `
+      <p>Hi ${name},</p>
+      <p>Someone (hopefully you) requested a password reset for your crew account.</p>
+      <p><a href="${resetUrl}">Click here to set a new password</a>. This link expires in 1 hour.</p>
+      <p>If you didn't request this, you can safely ignore this email.</p>
+    `,
+  })
+
+  if (sendError) {
+    console.error('[requestPasswordReset] failed to send email', { memberId, sendError })
+  }
+}
+
+export type ResetPasswordResult =
+  | { ok: true; groupCode: string }
+  | { ok: false; reason: 'invalid-or-expired' | 'password-required' }
+
+export async function resetPasswordWithToken(token: string, newPassword: string): Promise<ResetPasswordResult> {
+  if (!newPassword) return { ok: false, reason: 'password-required' }
+
+  const tokenHash = createHash('sha256').update(token).digest('hex')
+
+  const { data: member } = await supabaseServer
+    .from('members')
+    .select('id, reset_token_expires_at, groups(code)')
+    .eq('reset_token_hash', tokenHash)
+    .maybeSingle()
+
+  const expiresAt = (member as any)?.reset_token_expires_at as string | null
+  if (!member || !expiresAt || new Date(expiresAt) < new Date()) {
+    return { ok: false, reason: 'invalid-or-expired' }
+  }
+
+  const { error } = await supabaseServer
+    .from('members')
+    .update({
+      password_hash: hashPassword(newPassword),
+      reset_token_hash: null,
+      reset_token_expires_at: null,
+      session_token: uuidv4(),
+    } as any)
+    .eq('id', (member as any).id)
+
+  if (error) {
+    console.error('[resetPasswordWithToken] failed to reset password', { error })
+    throw new Error(error.message)
+  }
+
+  return { ok: true, groupCode: (member as any).groups.code }
 }
 
 export async function updateMemberColor(memberId: string, sessionToken: string, color: string): Promise<void> {

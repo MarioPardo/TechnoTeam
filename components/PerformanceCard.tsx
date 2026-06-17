@@ -5,7 +5,7 @@ import { Performance, Plan, Member } from '@/lib/types'
 
 interface PerformanceCardProps {
   performance: Performance
-  plans: (Plan & { members: Member })[]
+  plans: (Plan & { members: Pick<Member, 'id' | 'group_id' | 'name' | 'color' | 'created_at'> })[]
   isMine: boolean
   stageColor?: string | null
   timezone: string

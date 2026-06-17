@@ -13,7 +13,7 @@ type StageWithPerfs = Stage & { performances: Performance[] }
 
 interface LineupGridProps {
   stages: StageWithPerfs[]
-  plans: (Plan & { members: Member })[]
+  plans: (Plan & { members: Pick<Member, 'id' | 'group_id' | 'name' | 'color' | 'created_at'> })[]
   currentMemberId: string
   memberName?: string
   logoUrl?: string | null

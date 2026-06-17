@@ -15,7 +15,7 @@ import {
   DialogDescription,
   DialogTrigger,
 } from '@/components/ui/dialog'
-import { updateMemberPassword, updateMemberColor } from '@/app/actions/members'
+import { updateMemberPassword, updateMemberColor, getMemberEmail } from '@/app/actions/members'
 
 interface GroupSidebarProps {
   groupName: string
@@ -137,13 +137,18 @@ function UserSettingsDialog({ member }: { member: Member }) {
   const [open, setOpen] = useState(false)
   const [currentPw, setCurrentPw] = useState('')
   const [newPw, setNewPw] = useState('')
+  const [email, setEmail] = useState('')
   const [saving, setSaving] = useState(false)
   const [error, setError] = useState<string | null>(null)
   const [success, setSuccess] = useState(false)
 
   function handleOpenChange(v: boolean) {
     setOpen(v)
-    if (!v) {
+    if (v) {
+      getMemberEmail(member.id, member.session_token)
+        .then((stored) => setEmail(stored ?? ''))
+        .catch((err) => console.error('[GroupSidebar] failed to load email', err))
+    } else {
       setCurrentPw('')
       setNewPw('')
       setError(null)
@@ -156,7 +161,7 @@ function UserSettingsDialog({ member }: { member: Member }) {
     setError(null)
     setSuccess(false)
     try {
-      const result = await updateMemberPassword(member.id, member.session_token, currentPw, newPw)
+      const result = await updateMemberPassword(member.id, member.session_token, currentPw, newPw, email)
       if (!result.ok) {
         setError(result.reason === 'current-required' ? 'Current password is required' : 'Current password is incorrect')
         return
@@ -212,6 +217,21 @@ function UserSettingsDialog({ member }: { member: Member }) {
               onKeyDown={(e) => e.key === 'Enter' && handleSave()}
               className="-mt-1.5"
             />
+            <Label htmlFor="recovery-email">Email</Label>
+            <Input
+              id="recovery-email"
+              type="email"
+              placeholder="Leave blank to remove"
+              value={email}
+              onChange={(e) => { setEmail(e.target.value); setError(null) }}
+              onKeyDown={(e) => e.key === 'Enter' && handleSave()}
+              className="-mt-1.5"
+            />
+            <p className="text-xs text-muted-foreground/70 -mt-2">
+              Only used to recover your password — never for spam or marketing. Not required, but
+              without it a forgotten password can&apos;t be recovered. If that&apos;s a hassle, skip the
+              password too and just trust your crewmates.
+            </p>
           </div>
           {error && <p className="text-sm text-destructive">{error}</p>}
           {success && <p className="text-sm text-emerald-600 dark:text-emerald-400">Password updated!</p>}

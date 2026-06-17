@@ -34,3 +34,13 @@ end $$;
 -- The service_role key (used by server actions) bypasses RLS entirely,
 -- so all writes from the app continue to work without extra policies.
 -- Direct REST API calls using the anon key are now blocked for all mutations.
+
+-- Column-level lockdown for members.
+-- members_select above is row-level only ("any row"), and Realtime's
+-- postgres_changes broadcasts whatever the row policy allows without
+-- regard to which columns a query selected. session_token, password_hash,
+-- and email must never reach anon/authenticated, so they're cut off here
+-- at the column-grant level instead. service_role (server actions) is a
+-- separate role and keeps full access.
+revoke select on members from anon, authenticated;
+grant select (id, group_id, name, color, created_at) on members to anon, authenticated;

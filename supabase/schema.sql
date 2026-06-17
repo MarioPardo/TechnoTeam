@@ -66,21 +66,39 @@ create index if not exists groups_code_idx on groups(code);
 
 -- Members
 create table if not exists members (
-  id            uuid primary key default gen_random_uuid(),
-  group_id      uuid not null references groups(id) on delete cascade,
-  name          text not null,
-  password_hash text,
-  color         text,
-  session_token uuid not null unique,
-  created_at    timestamptz not null default now(),
+  id                      uuid primary key default gen_random_uuid(),
+  group_id                uuid not null references groups(id) on delete cascade,
+  name                    text not null,
+  password_hash           text,
+  email                   text,
+  reset_token_hash        text,
+  reset_token_expires_at  timestamptz,
+  color                   text,
+  session_token           uuid not null unique,
+  created_at              timestamptz not null default now(),
   -- Names are unique per group (case-insensitive)
   constraint members_group_name_unique unique (group_id, name)
 );
+
+create index if not exists members_reset_token_hash_idx
+  on members(reset_token_hash) where reset_token_hash is not null;
 
 -- Migration for existing databases:
 -- alter table members add column if not exists password_hash text;
 -- alter table members add column if not exists color text;
 -- alter table members add constraint members_group_name_unique unique (group_id, name);
+-- alter table members add column if not exists email text;
+--
+-- One-time cleanup: passwords are being reset because recovery email wasn't
+-- collected for any existing member. Run once, after the column above
+-- exists — going forward, password recovery only works for members who
+-- save an email when they set a password.
+-- update members set password_hash = null;
+--
+-- alter table members add column if not exists reset_token_hash text;
+-- alter table members add column if not exists reset_token_expires_at timestamptz;
+-- create index if not exists members_reset_token_hash_idx
+--   on members(reset_token_hash) where reset_token_hash is not null;
 
 -- Plans (which performances each member wants to attend)
 create table if not exists plans (
