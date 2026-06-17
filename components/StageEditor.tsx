@@ -4,6 +4,12 @@ import React, { useMemo, useState, useTransition } from 'react'
 import { createStage, deleteStage, updateStageColor, reorderStages } from '@/app/actions/stages'
 import { createPerformance, updatePerformance, deletePerformance } from '@/app/actions/performances'
 import { importLineupJSON, type ImportResult } from '@/app/actions/importLineup'
+import {
+  findDuplicatePerformances,
+  mergeDuplicatePerformances,
+  type DuplicateGroup,
+  type MergeResult,
+} from '@/app/actions/duplicates'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
@@ -100,11 +106,17 @@ function AddPerformanceForm({
   onDone: () => void
 }) {
   const [pending, startTransition] = useTransition()
+  const [error, setError] = useState<string | null>(null)
 
   function handleSubmit(formData: FormData) {
+    setError(null)
     startTransition(async () => {
-      await createPerformance(stageId, eventId, formData)
-      onDone()
+      try {
+        await createPerformance(stageId, eventId, formData)
+        onDone()
+      } catch (e) {
+        setError((e as Error).message)
+      }
     })
   }
 
@@ -131,6 +143,7 @@ function AddPerformanceForm({
           <Label className="text-xs text-muted-foreground">Note <span className="text-muted-foreground/50">(optional)</span></Label>
           <Input name="description" placeholder="e.g. Closing set" className="mt-1 h-9 text-sm" />
         </div>
+        {error && <p className="col-span-2 text-sm text-destructive">{error}</p>}
         <div className="col-span-2 flex justify-end gap-2 mt-1">
           <Button type="button" variant="ghost" size="sm" onClick={onDone}>Cancel</Button>
           <Button type="submit" size="sm" disabled={pending}>{pending ? 'Adding…' : 'Add set'}</Button>
@@ -341,6 +354,34 @@ export function StageEditor({
     setImportJson('')
   }
 
+  const [showDuplicates, setShowDuplicates] = useState(false)
+  const [duplicateGroups, setDuplicateGroups] = useState<DuplicateGroup[] | null>(null)
+  const [mergeResult, setMergeResult] = useState<MergeResult | null>(null)
+  const [checkingDuplicates, startDuplicateCheck] = useTransition()
+
+  function handleCheckDuplicates() {
+    setShowDuplicates(true)
+    setMergeResult(null)
+    setDuplicateGroups(null)
+    startDuplicateCheck(async () => {
+      setDuplicateGroups(await findDuplicatePerformances(eventId))
+    })
+  }
+
+  function handleMergeDuplicates() {
+    startDuplicateCheck(async () => {
+      const res = await mergeDuplicatePerformances(eventId)
+      setMergeResult(res)
+      setDuplicateGroups(await findDuplicatePerformances(eventId))
+    })
+  }
+
+  function closeDuplicates() {
+    setShowDuplicates(false)
+    setDuplicateGroups(null)
+    setMergeResult(null)
+  }
+
   const allPerfs = initialStages.flatMap((s) => s.performances)
 
   const days = useMemo(() => {
@@ -418,17 +459,83 @@ export function StageEditor({
             </button>
           ))}
         </div>
-        <button
-          onClick={() => setShowImport((v) => !v)}
-          className={`px-3 py-1.5 text-xs rounded-full border transition-colors shrink-0 ${
-            showImport
-              ? 'bg-muted border-border text-foreground'
-              : 'border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
-          }`}
-        >
-          Import JSON
-        </button>
+        <div className="flex gap-2 shrink-0">
+          <button
+            onClick={handleCheckDuplicates}
+            className="px-3 py-1.5 text-xs rounded-full border border-border text-muted-foreground hover:text-foreground hover:border-primary/40 transition-colors shrink-0"
+          >
+            Check for duplicates
+          </button>
+          <button
+            onClick={() => setShowImport((v) => !v)}
+            className={`px-3 py-1.5 text-xs rounded-full border transition-colors shrink-0 ${
+              showImport
+                ? 'bg-muted border-border text-foreground'
+                : 'border-border text-muted-foreground hover:text-foreground hover:border-primary/40'
+            }`}
+          >
+            Import JSON
+          </button>
+        </div>
       </div>
+
+      {/* Duplicate sets panel */}
+      {showDuplicates && (
+        <div className="mt-4 bg-card border border-border rounded-2xl p-5 shadow-sm">
+          <div className="flex items-center justify-between mb-4">
+            <h3 className="text-sm font-semibold text-foreground">Duplicate sets</h3>
+            <button onClick={closeDuplicates} className="text-muted-foreground hover:text-foreground text-lg leading-none transition-colors">×</button>
+          </div>
+
+          {checkingDuplicates && !duplicateGroups && !mergeResult && (
+            <p className="text-sm text-muted-foreground">Scanning…</p>
+          )}
+
+          {mergeResult && (
+            <p className="text-sm text-emerald-600 dark:text-emerald-400 mb-3">
+              Merged {mergeResult.groupsMerged} set{mergeResult.groupsMerged !== 1 ? 's' : ''} — moved {mergeResult.plansMoved}{' '}
+              selection{mergeResult.plansMoved !== 1 ? 's' : ''}, removed {mergeResult.performancesRemoved} duplicate row
+              {mergeResult.performancesRemoved !== 1 ? 's' : ''}.
+            </p>
+          )}
+
+          {duplicateGroups && duplicateGroups.length === 0 && (
+            <p className="text-sm text-muted-foreground">No duplicate sets found.</p>
+          )}
+
+          {duplicateGroups && duplicateGroups.length > 0 && (
+            <>
+              <ul className="space-y-3 mb-4">
+                {duplicateGroups.map((g, i) => {
+                  const dupSelections = g.duplicates.reduce((s, d) => s + d.planCount, 0)
+                  return (
+                    <li key={i} className="text-sm border border-border rounded-xl p-3">
+                      <div className="font-medium text-foreground">{g.artist} — {g.stageName}</div>
+                      <div className="text-xs text-muted-foreground mt-0.5">
+                        {fmtTime(g.start_time, timezone)} – {fmtTime(g.end_time, timezone)}
+                      </div>
+                      <div className="text-xs text-muted-foreground mt-1.5">
+                        Keeping the set with {g.keeper.planCount} selection{g.keeper.planCount !== 1 ? 's' : ''}; merging in{' '}
+                        {g.duplicates.length} duplicate{g.duplicates.length !== 1 ? 's' : ''}
+                        {dupSelections > 0 ? ` (${dupSelections} selection${dupSelections !== 1 ? 's' : ''} to move)` : ''}.
+                      </div>
+                    </li>
+                  )
+                })}
+              </ul>
+              <div className="flex items-center justify-between gap-3">
+                <p className="text-xs text-muted-foreground/70">No one&apos;s selections will be lost in the merge.</p>
+                <div className="flex gap-2 shrink-0">
+                  <Button variant="ghost" size="sm" onClick={closeDuplicates}>Cancel</Button>
+                  <Button size="sm" disabled={checkingDuplicates} onClick={handleMergeDuplicates}>
+                    {checkingDuplicates ? 'Merging…' : `Merge ${duplicateGroups.length} set${duplicateGroups.length !== 1 ? 's' : ''}`}
+                  </Button>
+                </div>
+              </div>
+            </>
+          )}
+        </div>
+      )}
 
       {/* Import panel */}
       {showImport && (
@@ -464,10 +571,13 @@ export function StageEditor({
                   {importResult.added} performance{importResult.added !== 1 ? 's' : ''} added successfully.
                 </p>
               )}
+              {importResult.skipped.map((msg, i) => (
+                <p key={i} className="text-sm text-muted-foreground">{msg}</p>
+              ))}
               {importResult.errors.map((err, i) => (
                 <p key={i} className="text-sm text-destructive">{err}</p>
               ))}
-              {importResult.added === 0 && importResult.errors.length === 0 && (
+              {importResult.added === 0 && importResult.skipped.length === 0 && importResult.errors.length === 0 && (
                 <p className="text-sm text-muted-foreground">Nothing to import.</p>
               )}
             </div>

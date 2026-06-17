@@ -39,7 +39,7 @@ function toUTCISO(date: string, time: string, nextDay: boolean, tz: string): str
   return new Date(approx - (tzWall - approx)).toISOString()
 }
 
-export type ImportResult = { added: number; errors: string[] }
+export type ImportResult = { added: number; skipped: string[]; errors: string[] }
 
 export async function importLineupJSON(eventId: string, json: string): Promise<ImportResult> {
   if (!(await isManageUnlocked())) throw new Error('Unauthorized')
@@ -78,8 +78,19 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
   let nextOrder = rows.length > 0 ? rows[0].order_index + 1 : 0
   for (const s of rows) stageByName.set(s.name.toLowerCase(), s.id)
 
+  const stageIds = rows.map((s) => s.id)
+  const { data: existingPerfs } = stageIds.length > 0
+    ? await supabaseServer.from('performances').select('stage_id, artist, start_time, end_time').in('stage_id', stageIds)
+    : { data: [] as { stage_id: string; artist: string; start_time: string; end_time: string }[] }
+  const seen = new Set<string>(
+    ((existingPerfs ?? []) as { stage_id: string; artist: string; start_time: string; end_time: string }[]).map(
+      (p) => `${p.stage_id}::${p.artist.trim().toLowerCase()}::${p.start_time}::${p.end_time}`,
+    ),
+  )
+
   let colorCursor = rows.length % AUTO_COLORS.length
   const errors: string[] = []
+  const skipped: string[] = []
   let added = 0
   const collectedDayLabels: Record<string, string> = {}
 
@@ -123,16 +134,25 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
     const [eh, em] = e.end.split(':').map(Number)
     const wrapDay = eh * 60 + em < sh * 60 + sm
 
+    const startISO = toUTCISO(e.date, e.start, false, timezone)
+    const endISO = toUTCISO(e.date, e.end, wrapDay, timezone)
+    const dedupeKey = `${stageId}::${e.artist.trim().toLowerCase()}::${startISO}::${endISO}`
+
+    if (seen.has(dedupeKey)) {
+      skipped.push(`${label}: already on "${e.stage.trim()}" at this exact time — skipped`)
+      continue
+    }
+
     const { error: pErr } = await supabaseServer.from('performances').insert({
       stage_id: stageId,
       artist: e.artist.trim(),
-      start_time: toUTCISO(e.date, e.start, false, timezone),
-      end_time:   toUTCISO(e.date, e.end, wrapDay, timezone),
+      start_time: startISO,
+      end_time: endISO,
       description: e.note?.trim() || null,
     } as any)
 
     if (pErr) errors.push(`${label}: ${pErr.message}`)
-    else added++
+    else { added++; seen.add(dedupeKey) }
   }
 
   if (Object.keys(collectedDayLabels).length > 0) {
@@ -141,5 +161,5 @@ export async function importLineupJSON(eventId: string, json: string): Promise<I
   }
 
   revalidatePath(`/events/${eventId}/manage`)
-  return { added, errors }
+  return { added, skipped, errors }
 }
