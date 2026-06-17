@@ -25,6 +25,8 @@ interface LineupGridProps {
 }
 
 const PX_PER_MIN = 2
+const PX_PER_MIN_MOBILE = 3
+const MOBILE_ROW_HEIGHT = 72
 
 function toMinutes(iso: string): number {
   return new Date(iso).getTime() / 60000
@@ -36,13 +38,13 @@ function toDateKey(iso: string, tz: string): string {
 
 type TimeMarker = { label: string; offset: number; isHour: boolean }
 
-function buildTimeMarkers(minSlot: number, maxSlot: number, tz: string): TimeMarker[] {
+function buildTimeMarkers(minSlot: number, maxSlot: number, tz: string, pxPerMin: number): TimeMarker[] {
   const markers: TimeMarker[] = []
   for (let t = minSlot; t <= maxSlot; t += 30) {
     const label = new Date(t * 60000).toLocaleTimeString('en-GB', { timeZone: tz, hour: '2-digit', minute: '2-digit' })
     markers.push({
       label,
-      offset: (t - minSlot) * PX_PER_MIN,
+      offset: (t - minSlot) * pxPerMin,
       isHour: label.endsWith(':00'),
     })
   }
@@ -152,9 +154,9 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
     [filteredStages],
   )
 
-  const { minTime, totalHeight, timeMarkers } = useMemo(() => {
+  const { minTime, totalHeight, totalWidth, timeMarkers, timeMarkersMobile } = useMemo(() => {
     const dayPerfs = filteredStages.flatMap((s) => s.performances)
-    if (dayPerfs.length === 0) return { minTime: 0, totalHeight: 0, timeMarkers: [] }
+    if (dayPerfs.length === 0) return { minTime: 0, totalHeight: 0, totalWidth: 0, timeMarkers: [], timeMarkersMobile: [] }
 
     const min = Math.min(...dayPerfs.map((p) => toMinutes(p.start_time)))
     const max = Math.max(...dayPerfs.map((p) => toMinutes(p.end_time)))
@@ -164,7 +166,9 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
     return {
       minTime: minSlot,
       totalHeight: (maxSlot - minSlot) * PX_PER_MIN,
-      timeMarkers: buildTimeMarkers(minSlot, maxSlot, timezone),
+      totalWidth: (maxSlot - minSlot) * PX_PER_MIN_MOBILE,
+      timeMarkers: buildTimeMarkers(minSlot, maxSlot, timezone, PX_PER_MIN),
+      timeMarkersMobile: buildTimeMarkers(minSlot, maxSlot, timezone, PX_PER_MIN_MOBILE),
     }
   }, [filteredStages, timezone])
 
@@ -183,6 +187,22 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
     }
     return markers
   }, [sunTimes, activeDay, minTime, totalHeight])
+
+  const sunMarkersMobile = useMemo(() => {
+    if (!sunTimes || minTime === 0) return []
+    const dayTimes = sunTimes.find((d) => d.dateKey === activeDay)
+    if (!dayTimes) return []
+    const markers: { type: 'sunrise' | 'sunset'; offset: number }[] = []
+    const riseOffset = (dayTimes.sunriseMinutes - minTime) * PX_PER_MIN_MOBILE
+    if (riseOffset >= 0 && riseOffset <= totalWidth) {
+      markers.push({ type: 'sunrise', offset: riseOffset })
+    }
+    const setOffset = (dayTimes.sunsetMinutes - minTime) * PX_PER_MIN_MOBILE
+    if (setOffset >= 0 && setOffset <= totalWidth) {
+      markers.push({ type: 'sunset', offset: setOffset })
+    }
+    return markers
+  }, [sunTimes, activeDay, minTime, totalWidth])
 
   if (allPerfs.length === 0) {
     return (
@@ -255,7 +275,8 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
             : `No sets scheduled for ${days.find((d) => d.key === activeDay)?.label ?? 'this day'}.`}
         </div>
       ) : (
-        <div>
+        <>
+        <div className="hidden md:block">
           {/* Stage name headers */}
           <div className="flex min-w-full sticky top-0 z-20 bg-background border-b border-border">
             <div className="w-28 shrink-0 flex items-end justify-center pb-2">
@@ -361,6 +382,103 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
             ))}
           </div>
         </div>
+
+        {/* Mobile: stages as full-width rows (swimlanes), time runs left-to-right */}
+        <div className="md:hidden">
+          {/* Time ruler */}
+          <div className="sticky top-0 z-20 bg-background border-b border-border relative h-7 overflow-hidden" style={{ width: totalWidth }}>
+            {timeMarkersMobile.map((m) => (
+              <div
+                key={m.offset}
+                className={`absolute top-1 leading-none -translate-x-1/2 whitespace-nowrap ${
+                  m.isHour ? 'text-xs text-muted-foreground' : 'text-[10px] text-muted-foreground/50'
+                }`}
+                style={{ left: m.offset }}
+              >
+                {m.label}
+              </div>
+            ))}
+            {sunMarkersMobile.map((m) => (
+              <div
+                key={m.type}
+                className="absolute top-0 bottom-0 -translate-x-1/2 flex items-center"
+                style={{ left: m.offset }}
+              >
+                {m.type === 'sunrise'
+                  ? <ArrowUp className="w-3 h-3 shrink-0" style={{ color: 'rgb(252,198,89)' }} />
+                  : <ArrowDown className="w-3 h-3 shrink-0" style={{ color: 'rgb(252,198,89)' }} />
+                }
+              </div>
+            ))}
+          </div>
+
+          {/* Stage rows */}
+          <div className="pt-4">
+            {filteredStages.map((stage) => (
+              <div key={stage.id} className="mb-4" style={{ width: totalWidth }}>
+                <div
+                  draggable
+                  onDragStart={() => setDraggedId(stage.id)}
+                  onDragOver={(e) => handleColumnDragOver(e, stage.id)}
+                  onDrop={() => handleColumnDrop(stage.id)}
+                  onDragEnd={() => { setDraggedId(null); setDragOverId(null) }}
+                  className={`sticky left-0 z-10 px-1 py-1.5 text-base font-semibold text-foreground flex items-center gap-1.5 cursor-grab select-none transition-opacity w-fit max-w-[80vw] ${
+                    draggedId === stage.id ? 'opacity-40 bg-background' : dragOverId === stage.id ? 'bg-muted/60' : 'bg-background'
+                  }`}
+                  style={stage.color ? { borderBottom: `3px solid ${stage.color}` } : {}}
+                >
+                  {stage.color && (
+                    <span
+                      className="w-2 h-2 rounded-full shrink-0"
+                      style={{ backgroundColor: stage.color }}
+                    />
+                  )}
+                  <span>{stage.name}</span>
+                </div>
+
+                <div
+                  className="relative border-t border-border mt-1"
+                  style={{ width: totalWidth, height: MOBILE_ROW_HEIGHT }}
+                >
+                  {timeMarkersMobile.map((m) => (
+                    <div
+                      key={m.offset}
+                      className={`absolute top-0 bottom-0 border-l ${
+                        m.isHour ? 'border-border/60' : 'border-border/30'
+                      }`}
+                      style={{ left: m.offset }}
+                    />
+                  ))}
+                  {stage.performances.map((perf) => {
+                    const left = (toMinutes(perf.start_time) - minTime) * PX_PER_MIN_MOBILE
+                    const width =
+                      (toMinutes(perf.end_time) - toMinutes(perf.start_time)) * PX_PER_MIN_MOBILE
+                    const perfPlans = plans.filter((p) => p.performance_id === perf.id)
+                    const isMine = perfPlans.some((p) => p.member_id === currentMemberId)
+
+                    return (
+                      <div
+                        key={perf.id}
+                        className="absolute top-1 bottom-1"
+                        style={{ left, width }}
+                      >
+                        <PerformanceCard
+                          performance={perf}
+                          plans={perfPlans}
+                          isMine={isMine}
+                          stageColor={stage.color}
+                          timezone={timezone}
+                          onToggle={() => onToggle(perf.id)}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+        </>
       )}
 
       <ScheduleExportDialog
