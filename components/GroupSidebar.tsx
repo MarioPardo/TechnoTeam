@@ -100,6 +100,7 @@ function ColorPicker({ member }: { member: Member }) {
     try {
       await updateMemberColor(member.id, member.session_token, next)
     } catch (err) {
+      console.error('[GroupSidebar] failed to update color', err)
       setColor(previous)
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
@@ -155,11 +156,16 @@ function UserSettingsDialog({ member }: { member: Member }) {
     setError(null)
     setSuccess(false)
     try {
-      await updateMemberPassword(member.id, member.session_token, currentPw, newPw)
+      const result = await updateMemberPassword(member.id, member.session_token, currentPw, newPw)
+      if (!result.ok) {
+        setError(result.reason === 'current-required' ? 'Current password is required' : 'Current password is incorrect')
+        return
+      }
       setSuccess(true)
       setCurrentPw('')
       setNewPw('')
     } catch (err) {
+      console.error('[GroupSidebar] failed to update password', err)
       setError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setSaving(false)

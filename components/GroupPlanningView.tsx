@@ -151,12 +151,17 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
     setJoining(true)
     setJoinError(null)
     try {
-      const member = await signInOrJoin(group.id, joinName.trim(), joinPassword || undefined)
-      localStorage.setItem(SESSION_KEY, member.session_token)
-      localStorage.setItem(MEMBER_ID_KEY, member.id)
+      const result = await signInOrJoin(group.id, joinName.trim(), joinPassword || undefined)
+      if (!result.ok) {
+        setJoinError(result.reason === 'needs-password' ? 'This member has a password — please enter it' : 'Wrong password')
+        return
+      }
+      localStorage.setItem(SESSION_KEY, result.member.session_token)
+      localStorage.setItem(MEMBER_ID_KEY, result.member.id)
       addCrewCode(group.code)
-      setCurrentMember(member)
+      setCurrentMember(result.member)
     } catch (err) {
+      console.error('[handleJoin] sign in/join failed', err)
       setJoinError(err instanceof Error ? err.message : 'Something went wrong')
     } finally {
       setJoining(false)
@@ -166,18 +171,19 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
   const handleQuickSignIn = async (name: string) => {
     setQuickSignIn({ name, loading: true, needsPassword: false, password: '', error: null })
     try {
-      const member = await signInOrJoin(group.id, name)
-      localStorage.setItem(SESSION_KEY, member.session_token)
-      localStorage.setItem(MEMBER_ID_KEY, member.id)
-      addCrewCode(group.code)
-      setCurrentMember(member)
-    } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Something went wrong'
-      if (msg.toLowerCase().includes('password')) {
+      const result = await signInOrJoin(group.id, name)
+      if (!result.ok) {
         setQuickSignIn({ name, loading: false, needsPassword: true, password: '', error: null })
-      } else {
-        setQuickSignIn({ name, loading: false, needsPassword: false, password: '', error: msg })
+        return
       }
+      localStorage.setItem(SESSION_KEY, result.member.session_token)
+      localStorage.setItem(MEMBER_ID_KEY, result.member.id)
+      addCrewCode(group.code)
+      setCurrentMember(result.member)
+    } catch (err) {
+      console.error('[handleQuickSignIn] sign in failed', err)
+      const msg = err instanceof Error ? err.message : 'Something went wrong'
+      setQuickSignIn({ name, loading: false, needsPassword: false, password: '', error: msg })
     }
   }
 
@@ -185,12 +191,17 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
     if (!quickSignIn) return
     setQuickSignIn((prev) => prev ? { ...prev, loading: true, error: null } : null)
     try {
-      const member = await signInOrJoin(group.id, quickSignIn.name, quickSignIn.password)
-      localStorage.setItem(SESSION_KEY, member.session_token)
-      localStorage.setItem(MEMBER_ID_KEY, member.id)
+      const result = await signInOrJoin(group.id, quickSignIn.name, quickSignIn.password)
+      if (!result.ok) {
+        setQuickSignIn((prev) => prev ? { ...prev, loading: false, error: 'Wrong password' } : null)
+        return
+      }
+      localStorage.setItem(SESSION_KEY, result.member.session_token)
+      localStorage.setItem(MEMBER_ID_KEY, result.member.id)
       addCrewCode(group.code)
-      setCurrentMember(member)
+      setCurrentMember(result.member)
     } catch (err) {
+      console.error('[handleQuickSignInWithPassword] sign in failed', err)
       const msg = err instanceof Error ? err.message : 'Something went wrong'
       setQuickSignIn((prev) => prev ? { ...prev, loading: false, error: msg } : null)
     }
