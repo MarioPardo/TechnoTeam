@@ -14,6 +14,8 @@ import {
   DialogTitle,
   DialogDescription,
   DialogTrigger,
+  DialogFooter,
+  DialogClose,
 } from '@/components/ui/dialog'
 import { updateMemberPassword, updateMemberColor, getMemberEmail } from '@/app/actions/members'
 
@@ -22,6 +24,7 @@ interface GroupSidebarProps {
   groupCode: string
   members: Member[]
   currentMember: Member
+  onSignOut: () => void
   onLeave: () => void
 }
 
@@ -81,6 +84,35 @@ function InviteDialog({ groupCode }: { groupCode: string }) {
             </span>
           </div>
         </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
+function LeaveCrewDialog({ onLeave }: { onLeave: () => void }) {
+  return (
+    <Dialog>
+      <DialogTrigger
+        render={
+          <button className="mt-2 w-full text-xs font-semibold text-destructive border border-destructive/40 rounded-lg py-1.5 hover:bg-destructive/10 transition-colors" />
+        }
+      >
+        Leave crew
+      </DialogTrigger>
+      <DialogContent>
+        <DialogHeader>
+          <DialogTitle>Leave crew?</DialogTitle>
+          <DialogDescription>
+            This removes you from the crew entirely — your name and all of your saved sets will be
+            deleted. You can rejoin later, but you&apos;ll start fresh.
+          </DialogDescription>
+        </DialogHeader>
+        <DialogFooter>
+          <DialogClose render={<Button variant="outline" />}>Cancel</DialogClose>
+          <DialogClose render={<Button variant="destructive" onClick={onLeave} />}>
+            Leave crew
+          </DialogClose>
+        </DialogFooter>
       </DialogContent>
     </Dialog>
   )
@@ -244,7 +276,7 @@ function UserSettingsDialog({ member }: { member: Member }) {
   )
 }
 
-export function GroupSidebar({ groupName, groupCode, members, currentMember, onLeave }: GroupSidebarProps) {
+export function GroupSidebar({ groupName, groupCode, members, currentMember, onSignOut, onLeave }: GroupSidebarProps) {
   return (
     <div className="flex flex-col gap-5">
       <div>
@@ -252,11 +284,12 @@ export function GroupSidebar({ groupName, groupCode, members, currentMember, onL
         <div className="font-semibold text-foreground truncate">{groupName}</div>
         <InviteDialog groupCode={groupCode} />
         <button
-          onClick={onLeave}
-          className="mt-2 w-full text-xs font-semibold text-destructive border border-destructive/40 rounded-lg py-1.5 hover:bg-destructive/10 transition-colors"
+          onClick={onSignOut}
+          className="mt-2 w-full text-xs font-semibold text-foreground/80 border border-border rounded-lg py-1.5 hover:bg-muted transition-colors"
         >
-          Leave crew
+          Sign out
         </button>
+        <LeaveCrewDialog onLeave={onLeave} />
       </div>
 
       <div>

@@ -254,6 +254,12 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
     setPlans((prev) => prev.filter((p) => p.member_id !== currentMember.id))
   }, [currentMember])
 
+  const handleSignOut = useCallback(() => {
+    localStorage.removeItem(SESSION_KEY)
+    localStorage.removeItem(MEMBER_ID_KEY)
+    setCurrentMember(null)
+  }, [])
+
   const handleToggle = useCallback(async (performanceId: string) => {
     if (!currentMember) return
 
@@ -470,6 +476,7 @@ export function GroupPlanningView({ group, stages, initialPlans, sunTimes }: Gro
               groupCode={group.code}
               members={members}
               currentMember={currentMember}
+              onSignOut={handleSignOut}
               onLeave={handleLeave}
             />
           </div>
