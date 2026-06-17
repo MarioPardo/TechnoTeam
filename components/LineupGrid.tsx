@@ -26,7 +26,7 @@ interface LineupGridProps {
 
 const PX_PER_MIN = 2
 const PX_PER_MIN_MOBILE = 3
-const MOBILE_ROW_HEIGHT = 72
+const MOBILE_ROW_HEIGHT = 84
 
 function toMinutes(iso: string): number {
   return new Date(iso).getTime() / 60000
@@ -415,7 +415,7 @@ export function LineupGrid({ stages, plans, currentMemberId, memberName, logoUrl
           {/* Stage rows */}
           <div className="pt-4">
             {filteredStages.map((stage) => (
-              <div key={stage.id} className="mb-4" style={{ width: totalWidth }}>
+              <div key={stage.id} style={{ width: totalWidth }}>
                 <div
                   draggable
                   onDragStart={() => setDraggedId(stage.id)}
