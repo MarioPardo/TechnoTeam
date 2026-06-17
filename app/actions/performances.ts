@@ -19,12 +19,26 @@ export async function createPerformance(stageId: string, eventId: string, formDa
   const description = formData.get('description') as string
 
   const tz = await getEventTimezone(eventId)
+  const start = localInputToUTC(start_time, tz)
+  const end = localInputToUTC(end_time, tz)
+
+  const { data: sameSlot, error: dupErr } = await supabaseServer
+    .from('performances')
+    .select('artist')
+    .eq('stage_id', stageId)
+    .eq('start_time', start)
+    .eq('end_time', end)
+  if (dupErr) throw new Error(dupErr.message)
+  const isDuplicate = ((sameSlot ?? []) as { artist: string }[]).some(
+    (p) => p.artist.trim().toLowerCase() === artist.trim().toLowerCase(),
+  )
+  if (isDuplicate) throw new Error(`"${artist.trim()}" is already on this stage at this exact time.`)
 
   const { error } = await supabaseServer.from('performances').insert({
     stage_id: stageId,
     artist,
-    start_time: localInputToUTC(start_time, tz),
-    end_time: localInputToUTC(end_time, tz),
+    start_time: start,
+    end_time: end,
     description: description || null,
   } as any)
 
